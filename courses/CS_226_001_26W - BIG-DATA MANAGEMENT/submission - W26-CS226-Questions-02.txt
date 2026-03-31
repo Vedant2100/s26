@@ -1,9 +1,0 @@
-Which US county was selected as the study region for vegetation anomaly detection in this project?
-Boulder County, Colorado
-Riverside County, California
-Denver County, Colorado
-
-How many timelapse GIF animations does the dashboard generate when Generate Timelapse is checked?
-3
-2
-4
