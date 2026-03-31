@@ -1,0 +1,85 @@
+import json
+from flask import Flask, render_template, request
+from pipeline_runner import fetch_results
+
+app = Flask(__name__)
+
+def safe_int(value, default=None):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+def safe_json(obj):
+    return json.dumps(obj, ensure_ascii=True, default=str)
+
+@app.route("/", methods=["GET", "POST"])
+def index():
+    context = {
+        "error": None, "result": None,
+        "start_year": "", "end_year": "",
+        "resolution": "",
+        "generate_timelapse": False,
+    }
+    if request.method == "POST":
+        start_year         = safe_int(request.form.get("start_year"))
+        end_year           = safe_int(request.form.get("end_year"))
+        resolution         = request.form.get("resolution", "")
+        generate_timelapse = request.form.get("generate_timelapse") == "on"
+
+        context["start_year"]         = start_year or ""
+        context["end_year"]           = end_year   or ""
+        context["resolution"]         = resolution
+        context["generate_timelapse"] = generate_timelapse
+
+        if start_year is None or end_year is None:
+            context["error"] = "Please enter valid start and end years."
+            return render_template("index.html", **context)
+        if start_year > end_year:
+            context["error"] = "Start year cannot be greater than end year."
+            return render_template("index.html", **context)
+        if not resolution:
+            context["error"] = "Please select a resolution (20m, 30m or 50m)."
+            return render_template("index.html", **context)
+
+        try:
+            s3 = fetch_results(f"{start_year}-01", f"{end_year}-12", resolution)
+        except Exception as e:
+            context["error"] = f"Could not fetch S3 results: {str(e)}"
+            return render_template("index.html", **context)
+
+        ad = s3["anomaly_detected"]
+        nv = s3.get("ndvi_anomaly_count", 0)
+        nm = s3.get("ndmi_anomaly_count", 0)
+
+        context["result"] = {
+            "selected_timeframe":   f"{start_year}-01 to {end_year}-12",
+            "resolution":           resolution,
+            "run_id":               s3.get("run_id", ""),
+            "timelapse_status":     "Generated" if generate_timelapse else "Not generated",
+            "generate_timelapse":   generate_timelapse,
+            "anomaly_detected":     ad,
+            "anomaly_result":       "Anomaly Detected" if ad else "No Anomaly Detected",
+            "anomaly_event_count":  s3.get("anomaly_count", 0),
+            "ndvi_anomaly_count":   nv,
+            "ndmi_anomaly_count":   nm,
+            "total_pixels":         s3.get("total_pixels", 0),
+            "yearly_breakdown":     s3.get("yearly_breakdown", []),
+            "params":               s3.get("params", {}),
+            "monthly_chart_json":   safe_json(s3.get("monthly_chart", [])),
+            "scatter_json":         safe_json(s3.get("scatter_data", {"normal":[],"anomaly":[]})),
+            "zscore_json":          safe_json(s3.get("zscore_histogram", {"ndvi":[],"ndmi":[],"bins":[]})),
+            "top_pixels_json":      safe_json(s3.get("top_pixels", [])),
+            "monthly_heatmap_json": safe_json(s3.get("monthly_heatmap", [])),
+            "map_points_json":      safe_json(s3.get("map_points", {"normal":[],"anomaly":[]})),
+            "timelapse_urls":       s3.get("timelapse_urls", {}),
+            "pipeline_metrics":     s3.get("pipeline_metrics", []),
+            "banner_message": (
+                "Anomaly detected in the selected timeframe"
+                if ad else f"No anomaly detected for {start_year} to {end_year}."
+                ),
+        }
+    return render_template("index.html", **context)
+
+if __name__ == "__main__":
+    app.run(debug=True)
