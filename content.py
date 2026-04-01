@@ -345,6 +345,25 @@ def extract_and_download_linked_files(html, course_folder):
 
 
 def main():
+            # Download discussions
+            print("  Downloading discussions...")
+            discussions_folder = os.path.join(course_folder, "discussions")
+            os.makedirs(discussions_folder, exist_ok=True)
+            try:
+                discussions = safe_paginate(f"{BASE_API_URL}/courses/{course_id}/discussion_topics?per_page=100")
+                for disc in discussions:
+                    disc_title = make_safe(disc.get("title", "discussion"))
+                    disc_filename = f"{disc_title}.md"
+                    disc_path = os.path.join(discussions_folder, disc_filename)
+                    disc_body = disc.get("message", "")
+                    disc_author = disc.get("author", {}).get("display_name", "")
+                    disc_date = disc.get("posted_at", "")
+                    md = f"# {disc.get('title', 'Discussion') }\n\n*By: {disc_author}*\n*Posted: {disc_date}*\n\n---\n\n{disc_body}"
+                    with open(disc_path, "w", encoding="utf-8") as f:
+                        f.write(md)
+                    print(f"    ✅ Saved discussion: {disc_filename}")
+            except Exception as e:
+                print(f"    Error downloading discussions: {e}")
     """Main workflow to download all course content."""
     # Ensure the downloads directory exists
     os.makedirs(DOWNLOADS_BASE, exist_ok=True)
@@ -372,6 +391,26 @@ def main():
         print(f"\nCourse: {course_name}")
         course_folder = os.path.join(DOWNLOADS_BASE, course_name)
         os.makedirs(course_folder, exist_ok=True)
+
+        # Download announcements
+        print("  Downloading announcements...")
+        announcements_folder = os.path.join(course_folder, "announcements")
+        os.makedirs(announcements_folder, exist_ok=True)
+        try:
+            announcements = safe_paginate(f"{BASE_API_URL}/courses/{course_id}/announcements?per_page=100")
+            for ann in announcements:
+                ann_title = make_safe(ann.get("title", "announcement"))
+                ann_filename = f"{ann_title}.md"
+                ann_path = os.path.join(announcements_folder, ann_filename)
+                ann_body = ann.get("message", "")
+                ann_author = ann.get("author", {}).get("display_name", "")
+                ann_date = ann.get("posted_at", "")
+                md = f"# {ann.get('title', 'Announcement') }\n\n*By: {ann_author}*\n*Posted: {ann_date}*\n\n---\n\n{ann_body}"
+                with open(ann_path, "w", encoding="utf-8") as f:
+                    f.write(md)
+                print(f"    ✅ Saved announcement: {ann_filename}")
+        except Exception as e:
+            print(f"    Error downloading announcements: {e}")
 
         print("  Downloading files...")
         for file in safe_paginate(
