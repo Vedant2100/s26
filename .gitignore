@@ -206,3 +206,8 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
+scratch/
+
+# WFL — Frontier Lab post-training scraper (pdf.py)
+# Persistent Chromium profile: cookies, cache, local state; re-created on login.
+WFL/playwright_profile/
