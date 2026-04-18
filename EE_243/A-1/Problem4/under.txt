@@ -1,0 +1,32 @@
+Because `10` gives each cluster a **wider starting spread** than `1`.
+
+## Simple idea
+
+In this line:
+
+```python
+covs = [np.eye(d) * 10 for _ in range(k)]
+```
+
+the value on the diagonal is the **initial variance** for each feature.  A variance of 10 means “start with a fairly broad cluster,” while a variance of 1 means “start with a tight cluster.” [geeksforgeeks](https://www.geeksforgeeks.org/python/numpy-eye-python/)
+
+## Why not 1
+
+If you start with covariance `1 * I`, the Gaussians may be too narrow at the beginning, so many pixels get extremely tiny probabilities under most clusters. That can make EM more unstable or overly sensitive to the random initial means, and EM is known to depend strongly on initialization.  Using a larger initial spread gives the algorithm more room to softly assign pixels in early iterations before it learns better covariances from the data. [pmc.ncbi.nlm.nih](https://pmc.ncbi.nlm.nih.gov/articles/PMC4930421/)
+
+## Why 10 specifically
+
+There is nothing magical about **10**. It is just a reasonable heuristic choice to make the initial covariance broader and numerically safer than 1.  In practice, people often tune this based on the scale of the data, because EM can converge to different local solutions depending on how it starts. [en.wikipedia](https://en.wikipedia.org/wiki/Expectation%E2%80%93maximization_algorithm)
+
+## Intuition
+
+Think of each cluster as starting as a circle around its mean:
+
+- Variance `1`: small tight circle
+- Variance `10`: bigger looser circle
+
+A bigger starting circle is often better early on because the algorithm does not yet know the real cluster shape.  After a few EM iterations, those covariances get updated from the data anyway, so `10` is only a starting guess. [seadas.gsfc.nasa](https://seadas.gsfc.nasa.gov/help-9.0.0/clusteranalysis/EM.html)
+
+## In your image case
+
+For RGB pixels, if your values are on the 0–255 scale, variance `1` can be very small relative to the data range, while `10` is still small overall but less restrictive. That makes it easier for the initial Gaussians to “cover” color space before EM refines them. This is why 10 is often more practical than 1 in a simple hand-written implementation.

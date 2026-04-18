@@ -1,0 +1,12 @@
+Imagine two photos of the same building from slightly different views. The notebook tries to connect the same window corner, door edge, or pattern in both images, and your job is to see how those connections change when you use different VGG layers or a stricter versus looser matching rule.
+
+The final thing you report is basically:
+
+Setting 1 gave these matches.
+
+Setting 2 gave these matches.
+
+Here is what changed and which looked better.
+
+It is basically a comparison experiment, not a coding problem.
+

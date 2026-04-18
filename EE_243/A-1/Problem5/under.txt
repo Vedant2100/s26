@@ -1,0 +1,212 @@
+Simple idea
+Think of an image as being made from many wave-like patterns. The low frequencies are the big smooth patterns that change slowly across the image, and the amplitude tells how much of those patterns is present.
+
+So:
+
+Low frequency = broad, smooth changes.
+
+Amplitude = how strong those changes are.
+
+In an image
+Low-frequency amplitude mostly controls things like:
+
+overall brightness
+
+general color tone
+
+smooth lighting changes
+
+broad shading across large regions
+
+High frequencies, by contrast, are more about sharp edges, fine texture, and small details.
+
+In your FDA code
+When the code swaps the low-frequency amplitude from the target image, it is borrowing the target’s broad appearance, like lighting and color mood. It keeps the source phase so the source image still keeps its main shapes and structure.
+
+Very simple analogy
+Imagine drawing a picture and then putting a colored light filter over it:
+
+the objects stay the same
+
+the overall look and mood change
+
+That “look and mood” part is similar to what low-frequency amplitude affects.
+
+Swap amplitude
+python
+    res_amplitude = trg_amplitude * mask + src_amplitude * (1 - mask)
+Builds a new amplitude.
+
+Inside the center box, it uses target amplitude.
+
+Outside the center box, it keeps source amplitude.
+
+So only the low-frequency style region is borrowed from the target.
+
+Yes — these are the main **equations behind that function**.
+
+The code is implementing the FDA idea: take the **low-frequency amplitude** from the target image and combine it with the **phase** of the source image, then convert back to image space. [arxiv](https://arxiv.org/abs/2004.05498)
+
+## 1. Fourier transform
+
+For an image \(x\), the 2D Fourier transform is:
+
+\[
+\mathcal{F}(x)(u,v) = \sum_{m=0}^{H-1}\sum_{n=0}^{W-1} x(m,n)\, e^{-j 2\pi \left(\frac{um}{H}+\frac{vn}{W}\right)}
+\]  [openaccess.thecvf](https://openaccess.thecvf.com/content_CVPR_2020/papers/Yang_FDA_Fourier_Domain_Adaptation_for_Semantic_Segmentation_CVPR_2020_paper.pdf)
+
+This is what `np.fft.fft2(...)` computes. [openaccess.thecvf](https://openaccess.thecvf.com/content_CVPR_2020/papers/Yang_FDA_Fourier_Domain_Adaptation_for_Semantic_Segmentation_CVPR_2020_paper.pdf)
+
+## 2. Amplitude and phase
+
+A Fourier transform can be written in polar form as:
+
+\[
+\mathcal{F}(x)(u,v) = \mathcal{F}^{A}(x)(u,v)\, e^{j\,\mathcal{F}^{P}(x)(u,v)}
+\]  [openaccess.thecvf](https://openaccess.thecvf.com/content_CVPR_2020/papers/Yang_FDA_Fourier_Domain_Adaptation_for_Semantic_Segmentation_CVPR_2020_paper.pdf)
+
+where:
+
+- \(\mathcal{F}^{A}(x)\) = amplitude
+- \(\mathcal{F}^{P}(x)\) = phase [arxiv](https://arxiv.org/html/2403.07798v1)
+
+In code, these are:
+
+\[
+\mathcal{F}^{A}(x) = |\mathcal{F}(x)|
+\]
+
+\[
+\mathcal{F}^{P}(x) = \angle \mathcal{F}(x)
+\]
+
+which match:
+
+```python
+src_amplitude = np.abs(src_fft_shift)
+src_phase = np.angle(src_fft_shift)
+trg_amplitude = np.abs(trg_fft_shift)
+```
+
+## 3. Mask for low frequencies
+
+FDA defines a mask \(M_\beta\) that is 1 in the center low-frequency region and 0 elsewhere. [openaccess.thecvf](https://openaccess.thecvf.com/content_CVPR_2020/papers/Yang_FDA_Fourier_Domain_Adaptation_for_Semantic_Segmentation_CVPR_2020_paper.pdf)
+
+\[
+M_\beta(u,v)=
+\begin{cases}
+1, & (u,v)\in \text{center box controlled by } \beta \\
+0, & \text{otherwise}
+\end{cases}
+\]  [openaccess.thecvf](https://openaccess.thecvf.com/content_CVPR_2020/papers/Yang_FDA_Fourier_Domain_Adaptation_for_Semantic_Segmentation_CVPR_2020_paper.pdf)
+
+In your code, that center box is created by:
+
+\[
+h_{\text{start}} = H\left(0.5-\frac{\beta}{2}\right), \quad
+h_{\text{end}} = H\left(0.5+\frac{\beta}{2}\right)
+\]
+
+\[
+w_{\text{start}} = W\left(0.5-\frac{\beta}{2}\right), \quad
+w_{\text{end}} = W\left(0.5+\frac{\beta}{2}\right)
+\]
+
+and the mask is set to 1 inside that rectangle.
+
+## 4. Low-frequency amplitude swap
+
+This is the main FDA equation in your function:
+
+\[
+A_{\text{new}} = M_\beta \circ \mathcal{F}^{A}(x^t) + (1-M_\beta)\circ \mathcal{F}^{A}(x^s)
+\]  [openaccess.thecvf](https://openaccess.thecvf.com/content_CVPR_2020/papers/Yang_FDA_Fourier_Domain_Adaptation_for_Semantic_Segmentation_CVPR_2020_paper.pdf)
+
+where:
+
+- \(x^s\) = source image
+- \(x^t\) = target image
+- \(\circ\) = elementwise multiplication [openaccess.thecvf](https://openaccess.thecvf.com/content_CVPR_2020/papers/Yang_FDA_Fourier_Domain_Adaptation_for_Semantic_Segmentation_CVPR_2020_paper.pdf)
+
+This means:
+
+- inside the low-frequency center, use target amplitude
+- outside it, keep source amplitude
+
+That is exactly this line:
+
+```python
+res_amplitude = trg_amplitude * mask + src_amplitude * (1 - mask)
+```
+
+## 5. Rebuild spectrum with source phase
+
+After replacing the amplitude, the code combines it with the original source phase:
+
+\[
+\hat{\mathcal{F}}(x^{s\rightarrow t}) = A_{\text{new}} \cdot e^{j\,\mathcal{F}^{P}(x^s)}
+\]  [openaccess.thecvf](https://openaccess.thecvf.com/content_CVPR_2020/papers/Yang_FDA_Fourier_Domain_Adaptation_for_Semantic_Segmentation_CVPR_2020_paper.pdf)
+
+This is:
+
+```python
+res_fft_shift = res_amplitude * np.exp(1j * src_phase)
+```
+
+So the image keeps the source structure but gets target-style low-frequency appearance. [arxiv](https://arxiv.org/html/2403.07798v1)
+
+## 6. Inverse Fourier transform
+
+Finally, the stylized image is reconstructed by inverse FFT:
+
+\[
+x^{s\rightarrow t} = \mathcal{F}^{-1}\left(\hat{\mathcal{F}}(x^{s\rightarrow t})\right)
+\]  [openaccess.thecvf](https://openaccess.thecvf.com/content_CVPR_2020/papers/Yang_FDA_Fourier_Domain_Adaptation_for_Semantic_Segmentation_CVPR_2020_paper.pdf)
+
+This corresponds to:
+
+```python
+res_fft = np.fft.ifftshift(res_fft_shift, axes=(0, 1))
+res_img = np.fft.ifft2(res_fft, axes=(0, 1))
+res_img = np.real(res_img)
+```
+
+## 7. Full FDA equation
+
+The paper writes the whole FDA transformation as:
+
+\[
+x^{s\rightarrow t} =
+\mathcal{F}^{-1}
+\left(
+\left[
+M_\beta \circ \mathcal{F}^{A}(x^t)
++
+(1-M_\beta)\circ \mathcal{F}^{A}(x^s),
+\mathcal{F}^{P}(x^s)
+\right]
+\right)
+\]  [openaccess.thecvf](https://openaccess.thecvf.com/content_CVPR_2020/papers/Yang_FDA_Fourier_Domain_Adaptation_for_Semantic_Segmentation_CVPR_2020_paper.pdf)
+
+That is the main equation your function is implementing.
+
+## Very simple meaning
+
+In plain words:
+
+\[
+\text{new image} =
+\text{inverse FFT}\big(
+\text{target low-frequency style}
++
+\text{source structure}
+\big)
+\]
+
+More precisely:
+
+- target gives the low-frequency amplitude
+- source gives the phase
+- inverse FFT gives the final stylized image [arxiv](https://arxiv.org/abs/2004.05498)
+
+If you want, I can also rewrite these equations in a **copy-paste friendly format for your homework/report**.
