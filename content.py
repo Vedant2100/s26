@@ -168,6 +168,12 @@ DOWNLOAD_SUBMISSIONS = (
 INTERNAL_GIT_COMMIT = os.getenv("INTERNAL_GIT_COMMIT", "false").lower() == "true"
 
 downloaded_file_urls = set()
+# Maximum file size to save into the repo/workspace (bytes). Files larger than
+# this will be skipped to avoid committing very large binaries. Can be overridden
+# by setting the MAX_SAVE_BYTES environment variable in the workflow.
+MAX_SAVE_BYTES = int(os.getenv("MAX_SAVE_BYTES", str(100 * 1024 * 1024)))
+# Video file extensions to skip saving into the repo/workspace (to avoid large binaries)
+VIDEO_EXTS = {".mp4", ".mpg", ".mpeg", ".mov", ".avi", ".mkv", ".webm"}
 
 
 def make_safe(name):
@@ -392,6 +398,27 @@ def save_or_unzip(content, folder, filename):
             return  # Successfully extracted
 
     # Not a zip or extraction failed - save as regular file
+    # Avoid saving video files (user requested) and huge files into the repo/workspace
+    _, ext = os.path.splitext(filename)
+    ext = ext.lower()
+    if ext in VIDEO_EXTS:
+        print(f"    ⛔ Skipping video file: {filename}")
+        skipped_dir = os.path.join(folder, "__skipped_videos__")
+        os.makedirs(skipped_dir, exist_ok=True)
+        with open(os.path.join(skipped_dir, f"{make_safe(filename)}.meta.txt"), "w", encoding="utf-8") as m:
+            m.write(f"original_name: {filename}\nreason: video extension\n")
+        return
+
+    size = len(content) if content is not None else 0
+    if size and size > MAX_SAVE_BYTES:
+        print(f"    ⚠️  Skipping {filename}: size {size} bytes exceeds MAX_SAVE_BYTES ({MAX_SAVE_BYTES})")
+        # Save metadata about skipped file for later inspection
+        skipped_dir = os.path.join(folder, "__skipped_large_files__")
+        os.makedirs(skipped_dir, exist_ok=True)
+        with open(os.path.join(skipped_dir, f"{make_safe(filename)}.meta.txt"), "w", encoding="utf-8") as m:
+            m.write(f"original_name: {filename}\nsize_bytes: {size}\n")
+        return
+
     file_path = os.path.join(folder, filename)
     with open(file_path, "wb") as f:
         f.write(content)
@@ -484,6 +511,11 @@ def main():
         print(f"\nCourse: {course_name}")
         course_folder = os.path.join(DOWNLOADS_BASE, course_name)
         os.makedirs(course_folder, exist_ok=True)
+
+        # Always skip Deep Learning course (explicit user request)
+        if "DEEP LEARNING" in course_name.upper():
+            print(f"  ⛔ Skipping course (configured to skip Deep Learning): {course_name}")
+            continue
 
         # If this course should be sourced from a Dropbox shared-folder instead
         # of Canvas, the URL can be provided via the `DROPBOX_ML_URL` env var

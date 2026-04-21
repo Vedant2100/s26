@@ -102,15 +102,21 @@ jobs:
       - name: Commit and Push (AUTO_COMMIT/AUTO_PUSH governed)
         if: env.AUTO_COMMIT == 'true'
         run: |
-          # Show git status for debugging
+          # Only add allowed file types and reasonably-sized files to git to
+          # avoid GitHub's 100MB file size limit and large binary pushes.
+          OUTPUT_DIR=$(python -c "import json; print(json.load(open('config.json'))['output']['base_directory'])")
+
+          echo "Staging small/allowed files from $OUTPUT_DIR..."
+          # Find and add PDFs, markdown, notebooks, and small images under 100MB
+          find "$OUTPUT_DIR" -type f \( -iname "*.pdf" -o -iname "*.md" -o -iname "*.ipynb" -o -iname "*.png" -o -iname "*.jpg" -o -iname "*.jpeg" \) -size -100M -print0 | xargs -0 --no-run-if-empty git add --
+
+          # Optionally add other small files (csv, txt)
+          find "$OUTPUT_DIR" -type f \( -iname "*.csv" -o -iname "*.txt" \) -size -100M -print0 | xargs -0 --no-run-if-empty git add --
+
           git status --porcelain
 
-          # Add all files in the repository (more robust than adding a single path)
-          git add -A
-
-          # Check for changes
           if git diff --staged --quiet; then
-            echo "No changes to commit."
+            echo "No staged changes to commit."
           else
             git commit -m "Update Canvas course content - $(date +'%Y-%m-%d %H:%M:%S')"
             if [ "${AUTO_PUSH:-false}" = "true" ]; then
