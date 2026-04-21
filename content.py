@@ -67,6 +67,7 @@ import shutil
 import zipfile
 import tempfile
 import requests
+import subprocess
 import pdfkit
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
@@ -243,6 +244,104 @@ def extract_and_save_zip(zip_content, course_folder, zip_filename):
     return extracted_files
 
 
+def _find_libreoffice():
+    """Return path to a LibreOffice/soffice binary or None if not found."""
+    for name in ("soffice", "libreoffice", "soffice.bin"):
+        path = shutil.which(name)
+        if path:
+            return path
+    return None
+
+
+def convert_pptx_to_pdf(pptx_path, out_dir=None):
+    """Convert a .pptx file to PDF using LibreOffice in headless mode.
+
+    Returns path to the generated PDF on success, or None on failure.
+    """
+    soffice = _find_libreoffice()
+    if not soffice:
+        print("    ⚠️  LibreOffice/soffice not found; cannot convert PPTX to PDF")
+        return None
+
+    out_dir = out_dir or os.path.dirname(pptx_path)
+    try:
+        subprocess.run(
+            [soffice, "--headless", "--convert-to", "pdf", "--outdir", out_dir, pptx_path],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        base, _ = os.path.splitext(os.path.basename(pptx_path))
+        pdf_path = os.path.join(out_dir, f"{base}.pdf")
+        if os.path.exists(pdf_path):
+            print(f"    ✅ Converted PPTX to PDF: {os.path.basename(pdf_path)}")
+            return pdf_path
+        else:
+            print(f"    ⚠️  Conversion finished but PDF not found for {pptx_path}")
+            return None
+    except subprocess.CalledProcessError as e:
+        print(f"    ❌ LibreOffice failed converting {pptx_path}: {e}")
+        return None
+
+
+def download_dropbox_folder(shared_url, course_folder):
+    """Download a shared Dropbox folder (shared_url) as a zip and extract it.
+
+    The function will attempt to force a direct download (dl=1) which returns a
+    zip archive of the folder contents. Extracted files are saved into
+    `course_folder`. Any `.pptx` files found will be converted to PDF (if
+    LibreOffice is available) and the original `.pptx` removed so only PDFs
+    remain in the repo as requested.
+    """
+    os.makedirs(course_folder, exist_ok=True)
+
+    # Force direct-download (Dropbox uses dl=1 for raw download)
+    if "dl=1" in shared_url:
+        dl_url = shared_url
+    else:
+        if "?" in shared_url:
+            # replace existing dl param if present, otherwise append
+            if "dl=" in shared_url:
+                dl_url = re.sub(r"dl=\d", "dl=1", shared_url)
+            else:
+                dl_url = shared_url + "&dl=1"
+        else:
+            dl_url = shared_url + "?dl=1"
+
+    print(f"  🔗 Fetching Dropbox folder: {dl_url}")
+    try:
+        r = requests.get(dl_url, stream=True, timeout=60)
+        r.raise_for_status()
+    except Exception as e:
+        print(f"    ❌ Error downloading Dropbox link: {e}")
+        return
+
+    content = r.content
+
+    # Try to extract as zip archive
+    extracted = extract_and_save_zip(content, course_folder, "dropbox_folder.zip")
+    if extracted is None:
+        # If extraction failed, save the raw content as a single file
+        dest = os.path.join(course_folder, "dropbox_folder.zip")
+        with open(dest, "wb") as f:
+            f.write(content)
+        print(f"    Saved Dropbox content as {dest}")
+        return
+
+    # Convert any PPTX files to PDF and remove the originals
+    for root, _, files in os.walk(course_folder):
+        for fname in files:
+            if fname.lower().endswith(".pptx"):
+                pptx_path = os.path.join(root, fname)
+                pdf_path = convert_pptx_to_pdf(pptx_path, out_dir=root)
+                if pdf_path:
+                    try:
+                        os.remove(pptx_path)
+                        print(f"    🧹 Removed source PPTX: {fname}")
+                    except Exception as e:
+                        print(f"    ⚠️  Could not remove {pptx_path}: {e}")
+
+
 def safe_paginate(url):
     """Safely paginate through API results."""
     results = []
@@ -296,6 +395,19 @@ def save_or_unzip(content, folder, filename):
     file_path = os.path.join(folder, filename)
     with open(file_path, "wb") as f:
         f.write(content)
+    # If this is a PPTX, try to convert it to PDF and remove the original PPTX
+    try:
+        if file_path.lower().endswith(".pptx"):
+            pdf_path = convert_pptx_to_pdf(file_path, out_dir=folder)
+            if pdf_path and os.path.exists(pdf_path):
+                try:
+                    os.remove(file_path)
+                    print(f"    🧹 Removed source PPTX after conversion: {filename}")
+                except Exception as e:
+                    print(f"    ⚠️  Could not remove PPTX {file_path}: {e}")
+    except Exception:
+        # Conversion failures should not stop the downloader
+        pass
 
 
 def download_canvas_file_by_id(file_id, course_folder):
@@ -372,6 +484,33 @@ def main():
         print(f"\nCourse: {course_name}")
         course_folder = os.path.join(DOWNLOADS_BASE, course_name)
         os.makedirs(course_folder, exist_ok=True)
+
+        # If this course should be sourced from a Dropbox shared-folder instead
+        # of Canvas, the URL can be provided via the `DROPBOX_ML_URL` env var
+        # or via a mapping in `config.json` under the `dropbox_urls` key.
+        dropbox_url = None
+        mapping = CONFIG.get("dropbox_urls", {})
+        if course_name in mapping:
+            dropbox_url = mapping[course_name]
+        else:
+            # Allow case-insensitive or partial matches from config keys
+            for k, v in mapping.items():
+                if k and (k.strip().upper() in course_name.upper() or course_name.upper() in k.strip().upper()):
+                    dropbox_url = v
+                    break
+
+        # Env var override (explicit for Machine Learning course)
+        env_dropbox = os.getenv("DROPBOX_ML_URL", "").strip()
+        if env_dropbox:
+            dropbox_url = env_dropbox
+
+        # If this looks like the Machine Learning course and a dropbox URL is set,
+        # fetch the shared folder and skip Canvas downloading for this course.
+        if dropbox_url and "MACHINE LEARNING" in course_name.upper():
+            print("  ⚙️  Detected Machine Learning course - fetching from Dropbox instead of Canvas")
+            download_dropbox_folder(dropbox_url, course_folder)
+            # After fetching from Dropbox, skip the Canvas-based download flow
+            continue
 
         # Download announcements
         print("  Downloading announcements...")

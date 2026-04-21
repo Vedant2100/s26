@@ -8,7 +8,7 @@
     "download_submissions": true
   },
   "courses": {
-    "include_all": false,
+    "include_all": true,
     "course_ids": [
       "CS_226_001_26W - BIG-DATA MANAGEMENT",
       "CS_202_001_26W - ADVANCED OPERATING SYSTEMS",
