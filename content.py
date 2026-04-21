@@ -175,6 +175,11 @@ MAX_SAVE_BYTES = int(os.getenv("MAX_SAVE_BYTES", str(100 * 1024 * 1024)))
 # Video file extensions to skip saving into the repo/workspace (to avoid large binaries)
 VIDEO_EXTS = {".mp4", ".mpg", ".mpeg", ".mov", ".avi", ".mkv", ".webm"}
 
+# Global flag set per-course when we should only save PDFs for that course
+CURRENT_COURSE_ONLY_PDF = False
+# Video file extensions to skip saving into the repo/workspace (to avoid large binaries)
+VIDEO_EXTS = {".mp4", ".mpg", ".mpeg", ".mov", ".avi", ".mkv", ".webm"}
+
 
 def make_safe(name):
     """Sanitize filename by removing invalid characters."""
@@ -218,9 +223,21 @@ def extract_and_save_zip(zip_content, course_folder, zip_filename):
                 safe_name = make_safe(original_basename)
                 dest_path = os.path.join(course_folder, safe_name)
 
-                # Handle duplicate filenames by adding a suffix
+                # If a file with the same name exists, check if content matches;
+                # if identical, skip creating a duplicate. Otherwise add suffix.
                 base, ext = os.path.splitext(safe_name)
                 counter = 1
+                if os.path.exists(dest_path):
+                    try:
+                        existing = open(dest_path, "rb").read()
+                        if existing == zip_ref.read(member):
+                            extracted_files.append(dest_path)
+                            print(f"      ⚪ Skipped duplicate (identical): {safe_name}")
+                            continue
+                    except Exception:
+                        # If any error comparing, fall back to creating a new name
+                        pass
+
                 while os.path.exists(dest_path):
                     safe_name = f"{base}_{counter}{ext}"
                     dest_path = os.path.join(course_folder, safe_name)
@@ -401,6 +418,16 @@ def save_or_unzip(content, folder, filename):
     # Avoid saving video files (user requested) and huge files into the repo/workspace
     _, ext = os.path.splitext(filename)
     ext = ext.lower()
+
+    # If this course is configured to only keep PDFs, skip non-pdfs
+    if CURRENT_COURSE_ONLY_PDF and ext != ".pdf":
+        print(f"    ⛔ Skipping non-PDF for course-only-PDF mode: {filename}")
+        skipped_dir = os.path.join(folder, "__skipped_nonpdfs__")
+        os.makedirs(skipped_dir, exist_ok=True)
+        with open(os.path.join(skipped_dir, f"{make_safe(filename)}.meta.txt"), "w", encoding="utf-8") as m:
+            m.write(f"original_name: {filename}\nreason: course_only_pdf\n")
+        return
+
     if ext in VIDEO_EXTS:
         print(f"    ⛔ Skipping video file: {filename}")
         skipped_dir = os.path.join(folder, "__skipped_videos__")
@@ -420,6 +447,16 @@ def save_or_unzip(content, folder, filename):
         return
 
     file_path = os.path.join(folder, filename)
+    # If file already exists and is identical, skip writing to avoid duplicates
+    if os.path.exists(file_path):
+        try:
+            existing = open(file_path, "rb").read()
+            if existing == content:
+                print(f"    ⚪ Skipped saving; identical file already exists: {filename}")
+                return
+        except Exception:
+            pass
+
     with open(file_path, "wb") as f:
         f.write(content)
     # If this is a PPTX, try to convert it to PDF and remove the original PPTX
@@ -516,6 +553,19 @@ def main():
         if "DEEP LEARNING" in course_name.upper():
             print(f"  ⛔ Skipping course (configured to skip Deep Learning): {course_name}")
             continue
+
+        # Skip SHAPE and Stay TA Ready courses per user request
+        upper_name = course_name.upper()
+        if "SHAPE" in upper_name or "STAY TA READY" in upper_name:
+            print(f"  ⛔ Skipping course (configured to skip): {course_name}")
+            continue
+
+        # If this course should only keep PDFs (Advanced Computer Vision), set flag
+        global CURRENT_COURSE_ONLY_PDF
+        if "ADVANCED COMPUTER VISION" in upper_name:
+            CURRENT_COURSE_ONLY_PDF = True
+        else:
+            CURRENT_COURSE_ONLY_PDF = False
 
         # If this course should be sourced from a Dropbox shared-folder instead
         # of Canvas, the URL can be provided via the `DROPBOX_ML_URL` env var
