@@ -49,7 +49,11 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y wkhtmltopdf xvfb unzip libreoffice
+          # Install minimal packages; use --no-install-recommends to avoid large optional packages
+          sudo apt-get install -y --no-install-recommends wkhtmltopdf xvfb unzip \
+            libreoffice-core libreoffice-impress fonts-liberation
+          # Clean apt lists to reduce runner disk usage
+          sudo rm -rf /var/lib/apt/lists/*
 
       - name: Install Python dependencies
         run: |
