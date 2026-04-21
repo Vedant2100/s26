@@ -246,6 +246,16 @@ def extract_and_save_zip(zip_content, course_folder, zip_filename):
                 # Extract the file content and save it
                 try:
                     file_content = zip_ref.read(member)
+
+                    # Skip PDFs that are placeholder 'assignment - ...' files
+                    lower_name = safe_name.lower()
+                    if lower_name.endswith('.pdf') and lower_name.startswith('assignment - '):
+                        skipped_dir = os.path.join(course_folder, "__skipped_assignment_placeholders__")
+                        os.makedirs(skipped_dir, exist_ok=True)
+                        with open(os.path.join(skipped_dir, f"{make_safe(safe_name)}.meta.txt"), "w", encoding="utf-8") as m:
+                            m.write(f"original_name: {safe_name}\nreason: assignment_placeholder_skipped_from_zip\n")
+                        print(f"    ⛔ Skipped placeholder assignment PDF in zip: {safe_name}")
+                        continue
                     with open(dest_path, "wb") as f:
                         f.write(file_content)
                     extracted_files.append(dest_path)
@@ -385,6 +395,15 @@ def safe_paginate(url):
 
 def save_html_as_pdf(folder, name, html_content):
     """Convert HTML content to PDF and save it."""
+    # Skip generated PDFs for assignment placeholders (names like 'assignment - ...')
+    if name and name.strip().lower().startswith('assignment - '):
+        skipped_dir = os.path.join(folder, "__skipped_assignment_placeholders__")
+        os.makedirs(skipped_dir, exist_ok=True)
+        with open(os.path.join(skipped_dir, f"{make_safe(name)}.meta.txt"), "w", encoding="utf-8") as m:
+            m.write(f"generated_name: {name}\nreason: assignment_placeholder_skipped_from_html\n")
+        print(f"    ⛔ Skipped generating placeholder assignment PDF: {name}")
+        return
+
     safe_name = make_safe(name)
     pdf_path = os.path.join(folder, f"{safe_name}.pdf")
     try:
@@ -434,6 +453,15 @@ def save_or_unzip(content, folder, filename):
         os.makedirs(skipped_dir, exist_ok=True)
         with open(os.path.join(skipped_dir, f"{make_safe(filename)}.meta.txt"), "w", encoding="utf-8") as m:
             m.write(f"original_name: {filename}\nreason: video extension\n")
+        return
+
+    # Skip placeholder PDFs that start with 'assignment - '
+    if ext == ".pdf" and filename.lower().startswith('assignment - '):
+        skipped_dir = os.path.join(folder, "__skipped_assignment_placeholders__")
+        os.makedirs(skipped_dir, exist_ok=True)
+        with open(os.path.join(skipped_dir, f"{make_safe(filename)}.meta.txt"), "w", encoding="utf-8") as m:
+            m.write(f"original_name: {filename}\nreason: assignment_placeholder_skipped_from_download\n")
+        print(f"    ⛔ Skipped placeholder assignment PDF: {filename}")
         return
 
     size = len(content) if content is not None else 0
