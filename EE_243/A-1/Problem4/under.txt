@@ -30,3 +30,11 @@ A bigger starting circle is often better early on because the algorithm does not
 ## In your image case
 
 For RGB pixels, if your values are on the 0–255 scale, variance `1` can be very small relative to the data range, while `10` is still small overall but less restrictive. That makes it easier for the initial Gaussians to “cover” color space before EM refines them. This is why 10 is often more practical than 1 in a simple hand-written implementation.
+
+
+## Overall discussion
+
+Overall, the segmentation quality is **good for color-based clustering**, but it is not perfect for true object-level segmentation.  It works well for separating broad color regions, but lighting changes, shadows, and highlights cause some parts of the same pepper to be split into different segments. 
+You could also write it a bit more naturally like this:
+
+ With \(K=5\), the segmented image captures the major color regions of the peppers image and keeps the main objects recognizable. However, because the model uses only RGB color features and no spatial information, some areas appear noisy and parts of the same object are split into different segments. Overall, the result is effective for coarse color-based segmentation but not perfect for precise object boundaries. 
