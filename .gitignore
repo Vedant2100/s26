@@ -211,3 +211,5 @@ scratch/
 # WFL — Frontier Lab post-training scraper (pdf.py)
 # Persistent Chromium profile: cookies, cache, local state; re-created on login.
 WFL/playwright_profile/
+EE_243/A-1/Report.docx
+EE_243/A-1/report_images/*

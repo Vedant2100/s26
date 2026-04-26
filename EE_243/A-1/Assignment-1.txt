@@ -1,0 +1,59 @@
+Assignment 1
+IMAGES:All images may be found in the TEST IMAGES folder:
+https://www.dropbox.com/sh/7aw3coygs3r8naw/AACUIg6mQyI1__815I5zOOlYa?dl=0
+Submission Protocol:
+• Submit all code inPython.
+• Each problem must be in a separateJupyter notebook(.ipynb).
+• Organize all files in a single folder, with subfolders named by problem number.
+•Google Colabis allowed.
+•Do not include data files—submission size should be only a few KB.
+• Include clearexplanationsin each notebook.
+• Attach aPDF reportsummarizing your findings.
+1.(2 pts)camera noisy.jpgis a noisy version of the imagecameraman. Using an image pyramid
+with Gaussian filtering, create a multiresolution decomposition of the noisy image (with at least two
+levels). Denoise the image by reconstructing it from the multi-resolution decomposition, de-emphasizing
+high-frequency components using a Laplacian filter.
+Please ensure that:
+• You implement all filters from scratch.
+• You clearly explain your choice of filter parameters.
+• You describe how you reduced the impact of high-frequency components.
+Name your solution file asProblem1.ipynb.
+2.(2 pts) Feature Matching:Complete theProblem2.ipynbnotebook provided in the folder. The goal
+of this problem is to match features between two different images based on detected keypoints. We will
+use a pre-trained VGG-16 model to extract intermediate feature maps, which will be used for keypoint
+matching.
+The notebook includes several stages such as image preprocessing, feature descriptor computation, and
+matching using distance-based criteria. The entire code has already been implemented for you. You need
+to do the following and summarize your observations:
+(a) Choose two different intermediate layers and report the keypoint matches from each.
+(b) Choose two different matching ratios and report the keypoint matches from each.
+3.(3 pts)In this problem, you will reconstruct the images using principal component analysis (PCA). Vec-
+torize each image in thepca face imagesdataset (https://www.dropbox.com/s/0g15mi9czdbcqfy/
+pca_face_images.zip?dl=0). Compute the mean image and subtract it from each vectorized im-
+age to obtain zero mean vectorsX∈R d×N, whereNis the number of images. Compute the covariance
+matrixR=XX T .
+1
+(a) Perform PCA by decomposingRasR=UΣU T .
+(b) Analyze the eigenvalues inΣand determine which ones to retain. Consider plotting the eigenvalues
+to help set a threshold.
+(c) Reconstruct approximations for eachXafter discarding small eigenvalues. Display some example
+reconstructions.
+(d) Calculate and report the reconstruction error between the original and reconstructed images (re-
+member to add the mean).
+(e) Experiment with different numbers of retained eigenvalues and analyze the impact.
+(f) Cluster the dataset using the PCA coefficients. Evaluate whether images of the same individual
+tend to cluster together.
+Name your solution file asProblem3.ipynb.
+4.(2 pts)On thepeppers color.tifimage, implement the Expectation-Maximization (EM) algo-
+rithm for a Gaussian Mixture Model based on color features to segment the image. Visually analyze the
+segmentation results and discuss their quality. Explicitly implement core EM steps—do not use built-in
+EM/GMM libraries.
+Name your solution file asProblem4.ipynb.
+5.(1 pts)Implement the Fourier Style Transfer approach described in the following paper:
+https://openaccess.thecvf.com/content_CVPR_2020/papers/Yang_FDA_Fourier_
+Domain_Adaptation_for_Semantic_Segmentation_CVPR_2020_paper.pdf
+Your implementation should accept a source and a target image and output a version of the source image
+stylized according to the target. You may usein-builtlibraries for FFT operations. The required images
+are available in the assignment folder.
+Name your solution file asProblem5.ipynb.
+2
