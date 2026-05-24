@@ -14,6 +14,7 @@ image = (
     .apt_install("git", "colmap", "zip", "unzip", "ffmpeg", "libgl1-mesa-glx", "libglib2.0-0", "build-essential", "gcc", "g++", "clang", "ninja-build")
     .pip_install("torch==2.1.2+cu118", "torchvision==0.16.2+cu118", index_url="https://download.pytorch.org/whl/cu118")
     .pip_install("numpy<2", "wheel", "ninja", "setuptools", "plyfile", "tqdm", "scipy", "opencv-python")
+    .env({"TORCH_CUDA_ARCH_LIST": "8.6"})
     .run_commands(
         "git clone --recursive https://github.com/graphdeco-inria/gaussian-splatting.git /gs",
         "pip install --no-build-isolation /gs/submodules/simple-knn",
