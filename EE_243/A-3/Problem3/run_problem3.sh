@@ -175,23 +175,29 @@ package_results() {
   log "Created $(du -h "$ZIP_OUT" | cut -f1) zip"
 }
 
-print_summary() {
-  n_render=$(ls -1 "$RENDERS"/*.jpg 2>/dev/null | wc -l || true)
-  ply=$(find "$GS_OUT" -name 'point_cloud.ply' 2>/dev/null | sort | tail -1)
-  num_gaussians="?"
-  if [ -n "$ply" ]; then
-    num_gaussians=$(grep '^element vertex' "$ply" | awk '{print $3}')
+cleanup() {
+  log "Cleaning up intermediate files and Conda environment to save quota..."
+  
+  # Deactivate conda env before removing it
+  conda deactivate || true
+  
+  if conda env list | awk '{print $1}' | grep -qx "$CONDA_ENV_NAME"; then
+    conda env remove -y -n "$CONDA_ENV_NAME"
+    log "Removed Conda environment: $CONDA_ENV_NAME"
   fi
 
+  # Remove heavy intermediate directories
+  rm -rf "$FRAMES" "$COLMAP" "$SCENE" "$GS_REPO" "$GS_OUT" "$RENDERS" "$ROOT/problem3_data.zip"
+  log "Cleaned up all intermediate data. Only $ZIP_OUT remains!"
+}
+
+print_summary() {
   cat <<EOF
 
 ================================================================================
  DONE
 ================================================================================
-  frames:      $(ls -1 "$FRAMES"/*.jpg | wc -l)
-  renders:     $n_render
-  iterations:  $ITERATIONS
-  gaussians:   $num_gaussians
+  Pipeline finished and cleanup complete!
   results zip: $ZIP_OUT
 
  Next (on your Mac):
@@ -211,4 +217,5 @@ prepare_scene
 run_train
 run_render
 package_results
+cleanup
 print_summary
