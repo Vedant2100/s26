@@ -29,8 +29,7 @@ ZIP_OUT="$ROOT/problem3_results.zip"
 ITERATIONS="${ITERATIONS:-30000}"
 PYTHON="${PYTHON:-python}"
 
-# --- edit if your cluster needs these ---
-CONDA_ENV="/data/AmitRoyChowdhury/vedant/envs/ee243-3dgs"
+CONDA_ENV_NAME="gs_env"
 
 log() { echo "[$(date +%H:%M:%S)] $*"; }
 
@@ -38,8 +37,38 @@ setup_env() {
   if command -v conda >/dev/null; then
     # shellcheck disable=SC1091
     source "$(conda info --base)/etc/profile.d/conda.sh"
-    conda activate "$CONDA_ENV"
-    log "conda env: $CONDA_ENV"
+    
+    if ! conda env list | awk '{print $1}' | grep -qx "$CONDA_ENV_NAME"; then
+      log "Creating Conda environment '$CONDA_ENV_NAME'..."
+      conda create -y -n "$CONDA_ENV_NAME" python=3.10
+      conda activate "$CONDA_ENV_NAME"
+      
+      log "Installing dependencies via Conda (CUDA, GCC, Colmap, FFmpeg)..."
+      conda install -y -c nvidia cuda-toolkit=11.8.0
+      conda install -y -c conda-forge gcc g++ colmap ffmpeg
+      
+      log "Installing Python dependencies..."
+      pip install torch==2.1.2 torchvision==0.16.2 --index-url https://download.pytorch.org/whl/cu118
+      pip install plyfile tqdm scipy opencv-python wheel ninja
+      
+      if [ ! -d "$GS_REPO" ]; then
+        log "Cloning gaussian-splatting for submodules..."
+        git clone --recursive https://github.com/graphdeco-inria/gaussian-splatting.git "$GS_REPO"
+      fi
+      
+      log "Building 3DGS C++ extensions..."
+      # Explicitly set CUDA arch for Ampere (e.g. A6000, RTX 3090, A10G) to avoid PyTorch detection bugs
+      export TORCH_CUDA_ARCH_LIST="8.6"
+      pip install "$GS_REPO/submodules/simple-knn"
+      pip install "$GS_REPO/submodules/diff-gaussian-rasterization"
+      log "Environment setup complete!"
+    else
+      conda activate "$CONDA_ENV_NAME"
+      log "conda env activated: $CONDA_ENV_NAME"
+    fi
+  else
+    echo "ERROR: conda is required but not found in PATH."
+    exit 1
   fi
 }
 
