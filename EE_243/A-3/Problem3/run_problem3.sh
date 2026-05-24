@@ -16,7 +16,7 @@
 #   Upload problem3_results.zip to Google Drive, then finish Problem3.ipynb in Colab.
 # =============================================================================
 
-set -euo pipefail
+set -eo pipefail
 
 ROOT="${ROOT:-$HOME/problem3}"
 FRAMES="$ROOT/frames"
