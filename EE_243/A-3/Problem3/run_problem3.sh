@@ -186,6 +186,11 @@ cleanup() {
     log "Removed Conda environment: $CONDA_ENV_NAME"
   fi
 
+  # Aggressively wipe package caches to reclaim temporary storage
+  log "Clearing Conda and pip caches..."
+  conda clean --all -y >/dev/null 2>&1 || true
+  rm -rf ~/.cache/pip
+
   # Remove heavy intermediate directories
   rm -rf "$FRAMES" "$COLMAP" "$SCENE" "$GS_REPO" "$GS_OUT" "$RENDERS" "$ROOT/problem3_data.zip"
   log "Cleaned up all intermediate data. Only $ZIP_OUT remains!"
