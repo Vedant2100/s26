@@ -1,0 +1,234 @@
+Introduction
+The EE 243 GPU cluster is an on premise GPU cluster provided for the EE 243 final project for Spring 2025. It is an HPC (High Performance Computing) cluster using a SLURM scheduler, similar to many other computing facilities at universities and supercomputing centers. The remainder of this documentation provides information on how to access the cluster, the cluster environment, how to run jobs on it, and how to install software on it.
+Accessing the Cluster
+Logging in to the cluster for the first time require the following steps:
+
+(1) Ensure that you have access to your UCR account and can login.  You will need to be on the campus network either wireless or campus VPN.  Instructions for the campus VPN setup can be found here: VPN Link
+
+(2) Once you have confirmed you can login with your NETID to your UCR account.  You can use a terminal of your choice or the following: SSH or X2Go.
+
+(3) On terminal run the following command: (substitute NETID with your actual NETID)
+
+ssh NETID@hpc-001.cs.ucr.edu
+
+This command will automatically log you in to the head node of the cluster using a pregenerated SSH key specific to your account.
+
+The Cluster Environment
+The cluster is an HPC (High Performance Computing) cluster running Rocky 8. You log in to the head node of the cluster, and run commands to see the status of the cluster and schedule jobs to run your code. The jobs are run on internal compute nodes that have GPUs on them. They are not run on the head node, it is intended as the gateway to the cluster and doesn't have any GPUs. 
+
+The jobs can be either interactive (meaning you log in directly to the node that you want to run code on interactively) or batch (meaning you specify a job and run it asynchronously)  In HPC computing, interactive jobs are typically used to test and debug and get code working, and batch jobs are used to run the final version of the code with more resources, in a way where you don't have to continue to pay attention to it.
+
+Typical commands to interact with the cluster:
+
+sinfo
+PARTITION AVAIL  TIMELIMIT  NODES  STATE NODELIST
+gpu*         up    8:00:00      2   idle cluster-001-gpu-[001-002]
+
+Compute nodes are organized into partitions with a number of identically configured nodes in each partition. The sinfo command shows information about the partitions on the cluster. The default partition is gpu, there are 2 nodes each with 4 NVIDIA RTX A6000 GPUs.  These GPUs each have 48 GB of VRAM.  So each node has 4x48 = 192 GB of VRAM.
+
+It is important to note that these GPUs are shared between students in the course. So please don't use more resources than you need!.
+Example Jobs
+Each example job shows how to use the cluster for some specific purpose. They don't take long to run and produce deterministic results as long as the cluster is working properly.
+Batch Jobs
+Batch jobs are stored in script files. The format of the file includes some headers which are directives to the scheduler, followed by the commands that should run. Individual jobs are submitted to the scheduler using the sbatch command. If resources are available to run the job immediately, it will run. If there are no resources available, the job will be queued until there are resources available.
+
+Note that the sbatch command does not launch tasks; it requests an allocation of resources such as GPUs and memory and then submits an associated batch script.  Directives put in as comments at the top of the script advise the Slurm controller what resources the batch script might need so that it can provide sufficient resources.
+
+The batch script itself can contain any valid commands, *including* calls to other Slurm-related executables such as srun (for running commands dynamically).
+
+Example: Batch Script - Bash Commands
+
+First, edit a file. Name it bash_commands.sh.  
+
+
+#!/bin/bash -l
+
+
+#SBATCH --nodes=1 # Allocate *at least* 1 node to this job.
+#SBATCH --ntasks=1 # Allocate *at most* 1 task for job steps in the job
+#SBATCH --cpus-per-task=1 # Each task needs only one CPU
+#SBATCH --mem=12G # This particular job won't need much memory
+#SBATCH --time=1-00:01:00  # 1 day and 1 minute 
+#SBATCH --job-name="batch job test"
+#SBATCH -p gpu # You could pick other partitions for other jobs IF they were available.
+#SBATCH --wait-all-nodes=1  # Run once all resources are available
+#SBATCH --output=output_%j-%N.txt # logging per job and per host in the current directory. Both stdout and stderr are logged.
+
+
+# Place any commands you want to run below
+hostname
+date
+nvidia-smi
+
+Now, run the job as a terminal command:.
+
+sbatch -p gpu --gres=gpu:1 -t 00:05:00 bash_commands.sh
+
+-p argument is for the partition of your choice
+-t argument is for the amount of time you would like to allocate
+--gres=gpu:1 specifies to use 1 GPU for the job. On a multi-GPU node, your job would only be able to see that 1 GPU unless you specify more GPUs. DO NOT specify more GPUs than you need.
+
+Each job will have a unique job identifier to keep track of it, called the JOBID. This job will automatically run on the first available node.
+
+You can check whether the job has been completed by running squeue:
+
+squeue -u $USER
+
+There will be no remaining jobs in your queue once the job has completed.
+
+Based on the relevant SBATCH directive from the example, the standard output and standard error from the job will be stored in a file in the current directory named in the format  output_%j-%N.txt, where %j is the JOBID and %h is the host. This file can be opened to see the output from the job.
+
+If the job has not been completed, it may actually be queued due to the current lack of resources. In that case, you can obtain more information about when it will start by running:
+squeue --start -u $USER
+ 
+Another reason for a job not completing might be if you specified unavailable resources using SBATCH directives in your batch file or in command line options provided to sbatch. This would never happen with the example above, but it might if you are copying and pasting SBATCH directives you found somewhere on the internet. For example, a SBATCH directive that requested to use 9 nodes on an 8-node cluster means that the associated job will simply never run. The job would need to be canceled using scancel:
+scancel job_id
+Interactive Jobs
+
+Interactive jobs open a shell on a node where you can test your code.  We recommend testing your code first to make sure it will run as a batch job, then switching over to a batch job to run it. If you do this, you'll be making much more efficient use of cluster resources.
+
+The following command runs a shell on a remote host, using the gpu partition:
+ 
+srun -p gpu --gres=gpu:1 --mem=12g --time=0:08:00 --pty bash -l
+
+Example Interactive Job: Running Jupyter Notebooks on Cluster Nodes
+
+(1) First, log in to the cluster from your remote computer, with no forwarding related options. You will need to have already set up SSH key based access from your remote computer directly to the cluster, using the content in Appendix A.
+
+ssh username@hpc-001.cs.ucr.edu
+
+username will be your username on the cluster, which should be the same as your UCR NetID.
+
+(2) Run an interactive shell on an internal node:
+
+srun -p gpu --gres=gpu:1 --mem=12g --time=0:08:00 --pty bash -
+
+
+(3) Find the IP address of that internal node.  It will start with 192.168.. 
+
+ip addr
+
+The output will look something like the following, the IP address is in bold below:
+The IP address you receive will likely be different.
+
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+2: eno1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP group default qlen 1000
+    link/ether 3c:ec:ef:3f:b9:8c brd ff:ff:ff:ff:ff:ff
+    altname enp96s0f0
+    altname ens4f0
+    inet 169.235.30.139/24 brd 169.235.30.255 scope global dynamic noprefixroute eno1
+       valid_lft 258484sec preferred_lft 258484sec
+3: eno2: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP group default qlen 1000
+    link/ether 3c:ec:ef:3f:b9:8d brd ff:ff:ff:ff:ff:ff
+    altname enp96s0f1
+    altname ens4f1
+    inet 192.168.129.8/24 brd 192.168.129.255 scope global noprefixroute eno2
+       valid_lft forever preferred_lft forever
+    inet6 fe80::3eec:efff:fe3f:b98d/64 scope link noprefixroute 
+       valid_lft forever preferred_lft forever
+
+(4) If you are running Anaconda Python, activate your virtual environment first and run your notebook on the internal node:
+
+python3 ~/.myenv/bin/activate 
+jupyter notebook --no-browser --port=8888 --ip=0.0.0.0
+
+This will run a Jupyter notebook on the internal node, listening on all interfaces on the internal node.
+
+Important notes:
+(A) The first command may not be necessary depending on how you are running Python.
+(B) The second command could be replaced with a similar invocation for Jupyter Lab if you would prefer to use it instead of Jupyter notebook.
+
+(5) Log in to the cluster a second time with IP forwarding to that internal node active.
+
+ssh -L 8888:192.178.129.8:8888 username@hpc-001
+
+Note, the IP address you will use here will be the one you obtain from step (3), not the one used in the example above.
+
+(6) On your remote system, open a browser and go to:
+
+http://127.0.0.1:8888/?token=YOUR_ACCESS_TOKEN
+
+Where YOUR_ACCESS_TOKEN is the one that printed to the screen whey you ran jupyter notebook in step (4).
+
+You will be able to access your Jupyter instance on the internal node.
+Using Scontrol to Monitor Jobs
+
+If a job is taking a surprising amount of time, you can monitor the job using scontrol:
+scontrol show JOBID job_id
+Modules
+If you are coming from other HPC clusters, you might be used to using modules to load in specific libraries. Currently, modules are unavailable on the cluster.
+Installing Your Own Software 
+You can install any software that you want in your home directory.  For example, if you wanted to use a specific version of Anaconda Python, you could download it from their website and follow the instructions to install it in your home directory (which is the default install location.) Since your home directory is available both on the cluster's head node and also on all of the compute nodes used to run jobs, the software would be available everywhere you needed it.
+Obtaining Support
+Please email a clear description of the issue to systems@cs.ucr.edu.  This will reach all administrators of the cluster.  The sorts of things that might be requested:
+
+
+Issues related to jobs not running or otherwise having trouble.  
+Operating system issues on the cluster, for example slow I/O performance.
+Installation of software that isn't available in the Singularity image for the course and which you can't install in your home directory. This should hopefully be rare, but it could happen. 
+
+Appendix A: Remote Access via VS Code
+
+The following instructions will set it up so that you can access the cluster using Visual Studio Code on your computer. If you want to use them, please read and follow them carefully.
+
+(A) Create an SSH keypair on your remote computer that you use to connect to bolt. If you have already done this, you can skip ahead to (B). 
+
+The following command will work on Linux and Mac, and it will work on Windows 10 or 11 if the OpenSSH Client feature is installed (this is the default on the newest versions of Windows, otherwise you would need to install it (typically via Settings -> Apps & features -> Manage optional features -> Add a feature -> OpenSSH Client)
+
+ssh-keygen -t rsa -b 4096
+
+When you run this command, accept all defaults and do not change the location of the key. Leave the keys in the location they were generated, with the default names they were created with. This is so that SSH will use them automatically.
+
+(B) Append the contents of the public key in ~/.ssh/id_rsa.pub that you just created on your remote computer to ~/.ssh/authorized_keys on the servers you want to connect to:
+bolt.cs.ucr.edu
+hpc-001.cs.ucr.edu
+
+You should be able to modify authorized_keys in bolt.cs.ucr.edu using the VSCode’s text editor. However, you may have to use Vim to make modifications in hpc-001.cs.ucr.edu.
+
+Use Vim to open authorized_keys.
+vim ~/.ssh/authorized_keys
+If you make some mistakes in the following steps and don’t know how to fix them, press ESC several times, and then type :q! to force quit vim without saving.
+Copy the contents of id_rsa.pub.
+Press ESC to get in the normal mode.
+Use arrow keys to move the cursor to the place you want to paste (usually at the end of the current content).
+Use Shift+Insert to paste.
+Use :wq to save and quit Vim.
+
+After you’ve done this, you should use cat ~/.ssh/authorized_keys to see if the operation is successful, and guarantee that the new public key is pasted completely.
+
+If the ~/.ssh directory does not exist in your account on bolt, then create it as a part of this process.
+
+After you have done so, run this command on each server after you have done so in order to set permissions correctly.
+
+chmod -Rv 0700 ~/.ssh
+
+This restricts permission on ~/.ssh and its contents to only your user, and is what is needed in order to ensure that key based SSH access will work.
+
+(C) Test that key based access is working by running the following command on your computer:
+
+ssh -J USERNAME@bolt.cs.ucr.edu USERNAME@hpc-001.cs.ucr.edu
+
+where USERNAME is your CS username. This should log you in to hpc-001 if all of the steps have been followed successfully.
+
+(D) Assuming that you have (a) Visual Studio Code installed on your computer and (b) Have the Remote SSH extension installed in Visual Studio Code, then you should be able to edit your SSH configuration file on your computer to use bolt as a ProxyHost to access hpc-001:
+(a) Run Visual Studio Code.
+(b) Type F1 to bring up the command palette and select Remote SSH: Open SSH Configuration File... In that file, add these lines, modify them to replace YOUR_CS_USERNAME with your UCR NetID, save the file, and then close it.
+
+Host bolt
+  HostName bolt.cs.ucr.edu
+  User YOUR_CS_USERNAME
+  
+Host hpc-001
+  HostName hpc-001.cs.ucr.edu
+  User YOUR_CS_USERNAME
+  ProxyJump bolt
+
+If the commands in (C) above worked, then this should as well. You should be able to select hpc-001 as a remote SSH host in Visual Studio Code and access it that way. 
+
+You will be able to open a remote terminal in Visual Studio Code on hpc-001 and run batch and interactive jobs from that terminal.
+
+You may find that the ‘File Explorer’ or ‘File Manager’ is unavailable in VSCode after you get connected. You can click ‘Open Folder’ and select or type the directory path you want to access. The VSCode will reload the page and the ‘File Explorer’ should be showing files in the specified directory.
+
