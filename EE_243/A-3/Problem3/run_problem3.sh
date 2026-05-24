@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -e
 # =============================================================================
 # EE243 Problem 3 — ONE script for crisgc. Run everything with:
 #
@@ -19,6 +20,10 @@
 set -eo pipefail
 
 ROOT="${ROOT:-$HOME/problem3}"
+TMPDIR="$ROOT/tmp"
+mkdir -p "$TMPDIR"
+export TMPDIR
+
 FRAMES="$ROOT/frames"
 COLMAP="$ROOT/colmap"
 SCENE="$ROOT/scene"
@@ -39,17 +44,17 @@ setup_env() {
     source "$(conda info --base)/etc/profile.d/conda.sh"
     
     if ! conda env list | awk '{print $1}' | grep -qx "$CONDA_ENV_NAME"; then
-      log "Creating Conda environment '$CONDA_ENV_NAME'..."
-      conda create -y -n "$CONDA_ENV_NAME" python=3.10
+      log "Creating Conda environment and installing all system dependencies (CUDA, GCC, Colmap)..."
+      conda create -y -n "$CONDA_ENV_NAME" -c nvidia -c conda-forge \
+        python=3.10 \
+        cuda-version=11.8 cuda-toolkit=11.8.0 cuda-nvcc=11.8.89 \
+        gcc=11 gxx=11 colmap ffmpeg
       conda activate "$CONDA_ENV_NAME"
-      
-      log "Installing dependencies via Conda (CUDA, GCC, Colmap, FFmpeg)..."
-      conda install -y -c nvidia cuda-toolkit=11.8.0
-      conda install -y -c conda-forge gcc g++ colmap ffmpeg
+      export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:$LD_LIBRARY_PATH"
       
       log "Installing Python dependencies..."
       pip install torch==2.1.2 torchvision==0.16.2 --index-url https://download.pytorch.org/whl/cu118
-      pip install plyfile tqdm scipy opencv-python wheel ninja
+      pip install "numpy<2.0.0" "setuptools<70.0.0" plyfile tqdm scipy opencv-python wheel ninja
       
       if [ ! -d "$GS_REPO" ]; then
         log "Cloning gaussian-splatting for submodules..."
@@ -59,11 +64,12 @@ setup_env() {
       log "Building 3DGS C++ extensions..."
       # Explicitly set CUDA arch for Ampere (e.g. A6000, RTX 3090, A10G) to avoid PyTorch detection bugs
       export TORCH_CUDA_ARCH_LIST="8.6"
-      pip install "$GS_REPO/submodules/simple-knn"
-      pip install "$GS_REPO/submodules/diff-gaussian-rasterization"
+      pip install --no-build-isolation "$GS_REPO/submodules/simple-knn"
+      pip install --no-build-isolation "$GS_REPO/submodules/diff-gaussian-rasterization"
       log "Environment setup complete!"
     else
       conda activate "$CONDA_ENV_NAME"
+      export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:$LD_LIBRARY_PATH"
       log "conda env activated: $CONDA_ENV_NAME"
     fi
   else
@@ -99,21 +105,56 @@ run_colmap() {
     echo "ERROR: colmap not found. Set MODULE_COLMAP at top of script, or: module load colmap"
     exit 1
   }
+
+  # Prevent COLMAP from crashing on headless servers (missing X11 display)
+  export QT_QPA_PLATFORM=offscreen
+
   log "COLMAP feature_extractor ..."
-  colmap feature_extractor --database_path "$COLMAP/database.db" --image_path "$FRAMES"
-  log "COLMAP exhaustive_matcher ..."
-  colmap exhaustive_matcher --database_path "$COLMAP/database.db"
+  colmap feature_extractor --database_path "$COLMAP/database.db" --image_path "$FRAMES" --SiftExtraction.use_gpu 0 --SiftExtraction.num_threads 8
+  log "Downloading vocabulary tree for robust matching..."
+  wget -qO "$ROOT/vocab_tree.bin" "https://demuc.de/colmap/vocab_tree_flickr100K_words32K.bin" || true
+  if [ -f "$ROOT/vocab_tree.bin" ]; then
+    log "COLMAP vocab_tree_matcher ..."
+    colmap vocab_tree_matcher \
+      --database_path "$COLMAP/database.db" \
+      --VocabTreeMatching.vocab_tree_path "$ROOT/vocab_tree.bin" \
+      --SiftMatching.use_gpu 0 \
+      --SiftMatching.num_threads 8
+  else
+    log "Fallback to COLMAP sequential_matcher with wide-baseline..."
+    colmap sequential_matcher \
+      --database_path "$COLMAP/database.db" \
+      --SequentialMatching.overlap 20 \
+      --SequentialMatching.quadratic_overlap 1 \
+      --SiftMatching.use_gpu 0 \
+      --SiftMatching.num_threads 8
+  fi
+  
   log "COLMAP mapper ..."
+  mkdir -p "$COLMAP/sparse"
   colmap mapper \
     --database_path "$COLMAP/database.db" \
     --image_path "$FRAMES" \
     --output_path "$COLMAP/sparse"
-  log "COLMAP done ($(ls "$COLMAP/sparse/0"/*.bin | wc -l) model files)"
+    
+  log "COLMAP image_undistorter (Converting to PINHOLE for 3DGS) ..."
+  mkdir -p "$COLMAP/undistorted"
+  colmap image_undistorter \
+    --image_path "$FRAMES" \
+    --input_path "$COLMAP/sparse/0" \
+    --output_path "$COLMAP/undistorted" \
+    --output_type COLMAP
+
+  log "COLMAP done"
 }
 
 prepare_scene() {
-  cp "$FRAMES"/*.jpg "$SCENE/images/"
-  cp "$COLMAP/sparse/0/"*.bin "$SCENE/sparse/0/"
+  log "Copying undistorted PINHOLE scene for 3DGS ..."
+  cp -a "$COLMAP/undistorted/images/." "$SCENE/images/"
+  mkdir -p "$SCENE/sparse/0"
+  cp "$COLMAP/undistorted/sparse/cameras.bin" "$SCENE/sparse/0/"
+  cp "$COLMAP/undistorted/sparse/images.bin" "$SCENE/sparse/0/"
+  cp "$COLMAP/undistorted/sparse/points3D.bin" "$SCENE/sparse/0/"
   log "3DGS scene ready at $SCENE"
 }
 
@@ -176,24 +217,16 @@ package_results() {
 }
 
 cleanup() {
-  log "Cleaning up intermediate files and Conda environment to save quota..."
-  
-  # Deactivate conda env before removing it
-  conda deactivate || true
-  
-  if conda env list | awk '{print $1}' | grep -qx "$CONDA_ENV_NAME"; then
-    conda env remove -y -n "$CONDA_ENV_NAME"
-    log "Removed Conda environment: $CONDA_ENV_NAME"
-  fi
+  log "Cleaning up intermediate files to save quota..."
 
   # Aggressively wipe package caches to reclaim temporary storage
   log "Clearing Conda and pip caches..."
   conda clean --all -y >/dev/null 2>&1 || true
   rm -rf ~/.cache/pip
 
-  # Remove heavy intermediate directories
-  rm -rf "$FRAMES" "$COLMAP" "$SCENE" "$GS_REPO" "$GS_OUT" "$RENDERS" "$ROOT/problem3_data.zip"
-  log "Cleaned up all intermediate data. Only $ZIP_OUT remains!"
+  # Remove temporary build directories but preserve intermediate results
+  rm -rf "$ROOT/problem3_data.zip" "$TMPDIR"
+  log "Cleaned up caches and tmp dirs. Intermediate results preserved!"
 }
 
 print_summary() {
