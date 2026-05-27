@@ -61,10 +61,6 @@ Below is a frame from the generated side-by-side comparison video (Ground Truth 
 ![Ground Truth vs 3DGS Video Frame](/Users/EndUser/Downloads/Repos/s26/EE_243/A-3/Problem3/gt_vs_3dgs_frame.png)
 
 ### Failure Modes Observed
-While the overall 3DGS render successfully captured the geometry, structural depth, and lighting of the courtyard, a few failure modes were visually apparent when comparing the render side-by-side with the ground truth:
-
-1.  **Floaters in Free Space:** Small, hazy, semi-transparent artifacts (floaters) are visible floating in the air, particularly around the edges of thin structures like the tree leaves and lamp posts against the bright sky.
-2.  **Blur on Fine Textures:** The high-frequency fine details in the scene, such as the texture of the grass and the individual leaves on the bushes, appear noticeably softer and blurrier than the ground truth.
-3.  **Exposure Drift / Specularities:** 3DGS struggles slightly with view-dependent reflections on the large glass windows in the background, causing them to look somewhat flat or inconsistent as the camera moves. 
+While the overall 3DGS render successfully captured the geometry, structural depth, and lighting of the courtyard, several distinct failure modes are visually apparent when analyzing the side-by-side comparison. First, the 3DGS render exhibits noticeable "floaters" (hazy, semi-transparent artifacts floating in free space), particularly around the edges of thin structures like the lamp posts and the tree leaves against the bright sky, where the model struggled to define sharp boundaries. Second, the fine, high-frequency textures in the scene, such as the individual blades of grass and the detailed foliage on the bushes, appear significantly softer and blurrier than the crisp ground truth video. Finally, there is minor exposure drift and unnatural specularity rendering on the large glass windows of the building; as the camera pans, the reflections appear somewhat static and flat, revealing the limitations of using spherical harmonics to model complex, view-dependent reflections on highly specular surfaces.
 
 ---

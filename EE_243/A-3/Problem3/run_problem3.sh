@@ -1,22 +1,3 @@
-#!/usr/bin/env bash
-set -e
-# =============================================================================
-# EE243 Problem 3 — ONE script for crisgc. Run everything with:
-#
-#   cd ~/problem3 && ./run_problem3.sh
-#
-# First time only (from your Mac):
-#   scp problem3_data.zip run_problem3.sh vbork001@crisgc:~/problem3/
-#
-# On crisgc (get a GPU node, then run the script):
-#   salloc --gres=gpu:1 --cpus-per-task=8 --mem=32G --time=6:00:00
-#   cd ~/problem3 && chmod +x run_problem3.sh && ./run_problem3.sh
-#
-# When done, from your Mac:
-#   scp vbork001@crisgc:~/problem3/problem3_results.zip .
-#   Upload problem3_results.zip to Google Drive, then finish Problem3.ipynb in Colab.
-# =============================================================================
-
 set -eo pipefail
 
 ROOT="${ROOT:-$HOME/problem3}"
@@ -62,7 +43,6 @@ setup_env() {
       fi
       
       log "Building 3DGS C++ extensions..."
-      # Explicitly set CUDA arch for Ampere (e.g. A6000, RTX 3090, A10G) to avoid PyTorch detection bugs
       export TORCH_CUDA_ARCH_LIST="8.6"
       pip install --no-build-isolation "$GS_REPO/submodules/simple-knn"
       pip install --no-build-isolation "$GS_REPO/submodules/diff-gaussian-rasterization"
@@ -106,7 +86,6 @@ run_colmap() {
     exit 1
   }
 
-  # Prevent COLMAP from crashing on headless servers (missing X11 display)
   export QT_QPA_PLATFORM=offscreen
 
   log "COLMAP feature_extractor ..."
@@ -219,12 +198,10 @@ package_results() {
 cleanup() {
   log "Cleaning up intermediate files to save quota..."
 
-  # Aggressively wipe package caches to reclaim temporary storage
   log "Clearing Conda and pip caches..."
   conda clean --all -y >/dev/null 2>&1 || true
   rm -rf ~/.cache/pip
 
-  # Remove temporary build directories but preserve intermediate results
   rm -rf "$ROOT/problem3_data.zip" "$TMPDIR"
   log "Cleaned up caches and tmp dirs. Intermediate results preserved!"
 }
@@ -237,17 +214,10 @@ print_summary() {
 ================================================================================
   Pipeline finished and cleanup complete!
   results zip: $ZIP_OUT
-
- Next (on your Mac):
-   scp vbork001@crisgc:$ZIP_OUT .
-
- Then in Colab Problem3.ipynb: upload zip to Drive, unzip under /content/Problem3/,
- re-run the last few cells for PSNR/SSIM + side-by-side video + REPORT.
 ================================================================================
 EOF
 }
 
-# --- main ---
 setup_env
 ensure_data
 run_colmap
