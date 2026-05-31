@@ -1,0 +1,19 @@
+
+1
+Paper Review Guidelines
+Format
+• NeurIPS format: https://neurips.cc/Conferences/2026/CallForPapers
+• At most 2 pages.
+• Do not directly copy and paste papers' sentences. Write the review of the paper in your own words.
+• Upload a single .pdf file.
+Suggested Structure
+• Title and your name.
+• Executive summary of the paper. Brief description of the contributions and new knowledge
+presented in the paper.
+• Strengths. List of the strong aspects of the paper. For instance, which technical parts are
+particularly interesting and novel? How does this paper mitigate the drawback of prior work?
+• Weaknesses and improvements. List of weak aspects of the paper and potential approaches to
+improve. For instance, what are the hidden/strong assumptions made and how to remove these
+assumptions? Is the experimental setup fair and how to better design the experiments?
+• Other comments. Additional thoughts and discussions on the paper. For instance, what part of the
+paper do you enjoyed the most? Does the paper inspire some new ideas?

@@ -1,0 +1,34 @@
+\subsection{LLM Agents and Reasoning Frameworks}
+
+Large Language Models (LLMs) have recently demonstrated strong capabilities beyond traditional natural language processing tasks. Modern LLMs are capable of performing reasoning, planning, and sequential decision-making when provided with structured prompts. This has led to the emergence of \textbf{LLM agents}, where language models are placed in an interaction loop with an environment and generate actions based on observations.
+
+Formally, an LLM agent operates within a closed-loop interaction cycle consisting of three stages:
+
+% \begin{center}
+% Observation $\rightarrow$ Reasoning $\rightarrow$ Action
+% \end{center}
+
+\begin{tikzpicture}[
+    node distance=2.5cm,
+    box/.style={rectangle, draw, rounded corners, minimum width=2.5cm, minimum height=1cm, align=center},
+    arrow/.style={-{Stealth[length=3mm]}, thick}
+]
+    \node[box] (obs)    {Observation};
+    \node[box, right=of obs] (reason) {Reasoning};
+    \node[box, right=of reason] (act)    {Action};
+
+    % Forward arrows
+    \draw[arrow] (obs) -- (reason);
+    \draw[arrow] (reason) -- (act);
+
+    % Loop-back arrow from Action to Observation
+    \draw[arrow] (act.south) -- ++(0,-1) -| (obs.south);
+\end{tikzpicture}
+
+At each timestep, the environment produces an observation describing the current state. This observation is converted into a textual representation and provided to the language model as part of a prompt. The LLM processes the prompt and generates a response that contains the next action to perform. The selected action is then executed in the environment, which updates the state and produces the next observation.
+
+Recent research has shown that \textbf{prompting strategies} can significantly influence the reasoning behavior of LLM agents. Instead of directly predicting an answer or action, models can be encouraged to generate intermediate reasoning steps. Techniques such as \textbf{Chain-of-Thought (CoT)} prompting demonstrate that explicitly asking the model to reason step-by-step can improve performance on complex tasks. Subsequent work has extended this idea to more sophisticated reasoning frameworks such as \textbf{ReAct}, \textbf{Tree-of-Thought}, and \textbf{Buffer-of-Thought}, which incorporate structured reasoning, branching exploration, and reusable reasoning templates.
+
+These reasoning frameworks are particularly relevant for \textbf{sequential decision-making tasks}, where agents must select a sequence of actions while considering environmental constraints. Navigation tasks in grid environments provide a controlled setting to evaluate these reasoning strategies. In such environments, the agent must reach a goal location while avoiding hazards such as walls or lava tiles. The agent must interpret spatial information, evaluate potential moves, and plan safe paths toward the goal.
+
+In this work, we evaluate different reasoning strategies for LLM agents in navigation tasks using the MiniGrid environment. Specifically, we compare reactive decision-making with reasoning-based approaches including Chain-of-Thought, ReAct, Tree-of-Thought, and Buffer-of-Thought. By evaluating these methods across environments of increasing difficulty, we aim to understand the trade-offs between reasoning complexity, computational cost, and navigation performance.

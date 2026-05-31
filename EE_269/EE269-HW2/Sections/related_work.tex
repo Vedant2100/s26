@@ -1,0 +1,10 @@
+
+\subsection{LLM-Based Autonomous Agents}
+
+The deployment of large language models as autonomous agents capable of reasoning, planning, and acting in interactive environments has become a rapidly growing research direction.~\cite{wang2024llmagentsurvey} provides a unified framework decomposing LLM-based agents into profile, memory, planning, and action modules, and distinguish between single-path and multi-path reasoning strategies for the planning module. Our work directly instantiates this taxonomy: we compare five agents that span the spectrum from no explicit planning (Reactive) through single-path reasoning (CoT, ReAct) to multi-path search (ToT) and memory-augmented reasoning (BoT), all within a controlled navigation setting.
+
+\subsection{LLM Agents in Grid Navigation}
+
+Grid-world environments have served as a common testbed for evaluating LLM agent capabilities. Tang et al.~\cite{tang2024worldcoder} proposed WorldCoder, a model-based agent that builds an explicit world model as a Python program through environment interaction, and evaluated it on MiniGrid and Sokoban. WorldCoder demonstrated superior sample efficiency over deep RL and compute efficiency over ReAct-style agents by front-loading LLM calls to synthesize a reusable world model. In contrast to WorldCoder's model-based code-synthesis approach, our study focuses on comparing prompting-only strategies where all reasoning occurs through structured LLM inference without learning or updating an external model, providing a complementary perspective on how different inference-time reasoning frameworks perform in navigation tasks.
+
+We evaluate all five agent strategies on the MiniGrid environment~\cite{chevalier2023minigrid}, a lightweight suite of discrete grid-world tasks with partially observable 2D navigation, configurable obstacles, sparse rewards, and natural-language mission strings.

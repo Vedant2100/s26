@@ -1,0 +1,146 @@
+\documentclass{article}
+
+\PassOptionsToPackage{numbers, compress}{natbib}
+
+\usepackage[main, final]{neurips_2025}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{amsfonts}
+\usepackage{nicefrac}
+\usepackage{microtype}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{float}
+\usepackage{tikz}
+\usetikzlibrary{positioning, arrows.meta}
+
+\title{Paper Review: Physics of Language Models Part 3.3}
+
+\author{
+  Vedant Borkute \\
+  Student ID: 862552981
+}
+
+\begin{document}
+
+\maketitle
+
+\textbf{Paper title:} Physics of Language Models: Part 3.3, Knowledge Capacity Scaling Laws \\
+\textbf{Author(s):} Zeyuan Allen-Zhu, Yuanzhi Li \cite{allenzhu2024part33} \\
+
+% -----------------------------------------------------------------------
+\section{Executive Summary}
+% -----------------------------------------------------------------------
+
+The paper \cite{allenzhu2024part33} aims to address a fundamental question of : Can we bound the bits of factual knowledge a transformer-based language model can store per parameter, and how do architectural choices, training duration, quantization, sparsity, and data quality affect that capacity?
+
+For me, their principal methodological contribution is a principled framework for quantifying extractable knowledge storage in language models. They represent knowledge as \textit{(name, attribute, value)} tuples, and model performance is measured 
+% not by benchmark accuracy or perplexity but 
+by the number of knowledge bits stored (using a theoretical lower bound (Theorem 3.2)) per parameter which is an architecture-agnostic unit. This work builds on the same authors' prior work on knowledge storage and extraction \cite{allenzhu2023part31} and knowledge manipulation \cite{allenzhu2023part32}.
+
+Their main finding is a near-universal \textbf{2 bits/parameter} scaling law: GPT-2 \cite{radford2019gpt2}, LLaMA \cite{touvron2023llama}, and Mistral \cite{jiang2023mistral} models of all tested depths and widths converge to this ratio when each knowledge piece is encountered roughly 1000 times during training. This implies that a sufficiently trained 7B-parameter model can store approximately 14B bits of factual knowledge, which the authors estimate exceeds the combined knowledge content of English Wikipedia and all major English-language textbooks.
+
+Beyond this base result, the paper presented 12 controlled findings showing how the capacity ratio changes under the following conditions:
+\begin{itemize}[leftmargin=*]
+  \item Reduced training exposure: dropping to $\sim$1 bit/parameter at 100 exposures.
+  \item Alternative architectures: GatedMLP layers slowed convergence in the undertrained regime but do not reduce maximum capacity.
+  \item Post-training quantization using GPTQ \cite{frantar2022gptq}: int8 preserved capacity, while int4 reduced it by more than $2\times$.
+  \item Mixture-of-Experts sparsity \cite{fedus2022switch}: MoE with 32 experts loses only $1.3\times$ capacity despite using just 8.8\% of parameters while inference.
+  \item Noisy pretraining data mixtures: a 7:1 junk-to-useful ratio degrades capacity by up to $20\times$, mitigated substantially by prepending domain identifier tokens to high-quality data.
+\end{itemize}
+
+% -----------------------------------------------------------------------
+\section{Strengths}
+% -----------------------------------------------------------------------
+
+\begin{enumerate}[leftmargin=*]
+
+  \item 
+  The most important contribution according to me is the definition of a easily comparable and compact metric \textit{stored knowledge bits} as the unit of measurement for extractable knowledge. Prior scaling law work measured aggregate cross-entropy loss \cite{kaplan2020scaling, hoffmann2022chinchilla}, which does not distinguish between a model improving at factual recall versus grammar or formatting. Also, by grounding the metric in information theory, the capacity ratio is directly comparable across architectures, data formats, and training regimes.
+
+  \item An insight that the maximum knowledge capacity in the experiment is architecture, data and training regime agnostic but differs with different amount of training.
+   In the fully trained regime (1000 exposures), all tested architectures including models with no MLP layers converge to the same 2 bits/parameter ceiling, which also challenged the widespread assumption that MLP blocks are the primary site of factual knowledge storage in transformers.
+    % Architectural differences only emerge in the undertrained regime (100 exposures), where GatedMLP variants are slower and less stable to train, not fundamentally more limited. This reframes architectural comparisons from "which architecture stores more knowledge?" to the more actionable question of "which architecture reaches its capacity faster?" 
+
+  % \item 
+  % \textbf{Theorem 3.2: a tight bit-complexity lower bound for partially accurate models.}
+%  I believe the proof of lower bound on bit complexity given a cross-entropy loss is the most technically novel contribution. 
+ % Deriving a tight lower bound on how many bits a model must encode to achieve a given cross-entropy loss is non-trivial for three compounding reasons: 
+ % the model may only learn with partial accuracy; names must themselves be learned since $N \neq N_0$; and there is statistical dependency between knowledge pieces through shared diversity sets $D_a$. The proof via Lemma F.1---a reduction to a sequential prediction game---elegantly handles all three challenges simultaneously, and the bound is nearly tight within a $1-o(1)$ factor of the upper bound in Proposition 2.3. This kind of clean information-theoretic accounting for partially accurate learning is genuinely novel in the context of LLM analysis.
+
+  % \item 
+  % \textbf{Controlled synthetic data as a scientific instrument.}
+  % Their experiment settings are freely tunable as they train from scratch on synthetic biography datasets where every hyperparameter like vocabulary size $T$, diversity $D$, attribute count $K$, chunk length $L$.
+  % A persistent frustration in empirical LLM research is confounding: when one model outperforms another on a benchmark, it is impossible to isolate architecture from pretraining data or scale. By training from scratch on synthetic biography datasets where every hyperparameter---vocabulary size $T$, diversity $D$, attribute count $K$, chunk length $L$---is freely tunable, the authors construct a controlled laboratory. This allows them to isolate individual causal factors with a rigor that is essentially impossible with real internet pretraining data, and it entirely sidesteps benchmark contamination. The finding that the 2 bits/param law holds across $K \in [1, 50]$, $C \in [1, 50]$, $D \in [10, 10{,}000]$, $L \in [1, 50]$, and $T \in [20, 40{,}000]$ (Result 3, Figure 2) is a convincing demonstration of the framework's generality.
+
+  % \item \textbf{Separating maximum capacity from training speed.}
+  % The distinction between the 1000-exposure (fully trained) and 100-exposure (undertrained) regimes is conceptually important and practically useful. In the fully trained regime, architectures converge to the same capacity, including models with no MLP layers at all, which challenges the widespread assumption that MLP blocks are the primary site of factual knowledge storage. Differences emerge only when training is insufficient: GatedMLP reduces capacity by 1.3$\times$ at 100 exposures (Result 6--7, Figure 4--5), not because it stores less information at capacity but because it trains slower and less stably. This reframes architectural comparisons from ``which architecture is better'' to ``which architecture reaches capacity faster,'' which is a more actionable and accurate framing.
+
+  % \item \textbf{Quantization and junk-data results with direct practical implications.}
+  % The finding that int8 post-training quantization via GPTQ \cite{frantar2022gptq} preserves capacity while int4 reduces it by more than 2$\times$ (Result 8) is both surprising and practically significant. It implies the 2 bits/param capacity is achieved with enough redundancy in the full-precision weights to survive halving the precision envelope, but not quartering it. The junk-data section (Results 10--12) is similarly actionable: a 7:1 junk-to-useful token ratio degrades useful knowledge capacity by up to 20$\times$ at equal exposure, but prepending a domain identifier token to useful paragraphs recovers most of the loss, with only 2$\times$ degradation at 100 exposures and full recovery at 300 exposures. The key insight---that the model \textit{autonomously} learns which domain tokens signal high-quality data without any supervision---has direct implications for pretraining data curation pipelines, echoing the data quality findings of \cite{gunasekar2023textbooks}.
+
+\end{enumerate}
+
+% -----------------------------------------------------------------------
+\section{Weaknesses and Improvements}
+% -----------------------------------------------------------------------
+
+\begin{enumerate}[leftmargin=*]
+
+  \item 
+  % \textbf{Knowledge is defined narrowly as independent factual tuples.}
+  The \textit{(name, attribute, value)} tuples had no relational structure between them and also how tuples are related to one another is not incorporated. Even though the authors have mentioned that this helps in making the bit-counting well defined, it also doesn't represent how real-world knowledge would behave. Perhaps we could extend it by evaluating the same on a structured knowledge graph such as a subset of Wikidata.
+  % Real-world knowledge is deeply compositional: the capital of France relates to the country's geography, its history, its language, and so on. 
+  % There is no mechanism in the current framework to study whether models can exploit such structure to store knowledge more efficiently than 2 bits/param, or whether the 2 bits/param law breaks down for relational or multi-hop facts.
+  % I would strengthen this work by evaluating capacity on at least one structured knowledge graph---such as a subset of Wikidata---where facts share entities and attributes in non-trivial ways.
+
+  \item 
+  The paper presented all results as single-run results. However, with no confidence intervals or repeated trials, even if there is deterministic synthetic data, variance from random weight initializations and stochastic gradient updates remain. The precise claims like the $1.3\times$ capacity gap between LLaMA \cite{touvron2023llama} and GPT-2 \cite{radford2019gpt2} at 100 exposures would be difficult to interpret without knowing typical run-to-run variations.
+
+  % \item \textbf{Generalization from synthetic to natural data is assumed but not demonstrated.}
+  % All base scaling law experiments use either fully synthetic biography data (bioS, bioD) or semi-synthetic LLaMA2-rewritten \cite{touvron2023llama2} data (bioR). The claim that a 7B model ``surpasses English Wikipedia and textbooks'' (Remark 1.1) is an extrapolation from synthetic settings to real corpora whose knowledge density is estimated only roughly. It is entirely possible that real Wikipedia text contains semantic redundancy, ambiguity, or inter-sentence dependencies that interact with the model's capacity in ways the synthetic data does not capture. Including at least one experiment where the model is pretrained on a natural corpus subset---with the capacity ratio computed via the same bit-complexity lower bound---would substantially strengthen the main claim.
+
+  % \item \textbf{Architecture comparisons use asymmetric hyperparameter tuning protocols.}
+  % When reporting negative results (e.g., LLaMA \cite{touvron2023llama} underperforming GPT-2 \cite{radford2019gpt2} at 100 exposures), the authors select the best result from three learning-rate choices. When reporting positive results (e.g., LLaMA with standard MLP matching GPT-2), they fix a single learning rate. While the authors acknowledge this asymmetry in Appendix B.2 and argue it strengthens the negative results, it introduces a reporting inconsistency that makes it difficult to assess the true magnitude of architectural differences. A fully standardized tuning budget---the same number of candidate hyperparameters for every architecture in every setting---would make these comparisons cleaner and more convincing to a skeptical reader.
+
+  % \item \textbf{Quantization conclusions are limited to a single GPTQ post-training method.}
+  % The int4 capacity degradation result (Result 8) is based entirely on the GPTQ post-training quantization package \cite{frantar2022gptq}. This leaves open whether the degradation is a fundamental property of 4-bit representations or an artifact of this particular quantization algorithm. Quantization-aware training (QAT), which incorporates quantization into the training loop, often recovers precision lost by post-training methods. Including at least one QAT baseline would clarify whether the 2 bits/param capacity is achievable in int4 models at all, which is both a theoretically interesting question and a practically important one given the wide deployment of 4-bit models.
+
+  % \item 
+  % The paper presents all results as single-run scatter plots with no confidence intervals, standard deviations, or repeated trials. Given that some of the key claims such as the 1.3$\times$ capacity gap between LLaMA \cite{touvron2023llama} and GPT-2 \cite{radford2019gpt2} at 100 exposures are quantitatively precise, it would be important to know whether this gap is stable across random seeds and data orderings. 
+  % Even a small set of repeated runs on representative model sizes would substantially increase confidence in the numerical claims.
+
+\end{enumerate}
+
+% -----------------------------------------------------------------------
+\section{Other Comments}
+% -----------------------------------------------------------------------
+
+\begin{itemize}[leftmargin=*]
+
+  % \item \textbf{What I found most valuable.}
+  % The attempt to assign a physically interpretable storage rate---bits per parameter---to language models is the aspect I found most compelling. It makes scaling-law discussions far more concrete than benchmark percentage deltas, which are sensitive to prompt format, evaluation methodology, and benchmark contamination. Having a unit grounded in Shannon information theory means the capacity ratio can in principle be compared to channel capacity bounds and used to reason about fundamental limits, not just empirical trends. The result that transformers achieve more than one quarter of the information-theoretic maximum ($2/8 = 0.25$ for int8 parameters, by Corollary 8.1) is particularly striking.
+
+  The domain-token mitigation result (Result 12) suggests a low-cost improvement to pretraining pipelines where rather than filtering junk data \cite{gunasekar2023textbooks}, we could prepend structured domain metadata (URL domain, publication type, estimated reading level) to every paragraph in the pretraining corpus and allow the model to learn which metadata signals correlate with high-quality knowledge. 
+  % This is essentially a form of learned data routing that requires no labeled quality annotations and imposes no compute overhead beyond the token cost of the prefix.
+
+  % \item \textbf{An open question this paper raises.}
+  % The framework as presented measures knowledge capacity for isolated factual tuples. A question I am still thinking about is how this extends to compositional or procedural knowledge---the kind needed for multi-step reasoning, mathematical problem solving, or code generation---where the relevant ``knowledge piece'' is not a simple attribute value but a structured derivation or algorithm. It is not clear whether the 2 bits/param law is a general property of transformer computation or whether it is specific to the lookup-table-like retrieval of factual tuples. The prior part of this series on knowledge extraction via LoRA fine-tuning \cite{allenzhu2023part31, hu2022lora} provides a useful starting point, but extending the bit-complexity lower bound to multi-hop inference chains would be a theoretically interesting and practically important next step.
+
+  The paper also raises the question of how this framework would extend to compositional or procedural knowledge which is needed for multi-step reasoning or code generation and where the relevant knowledge piece is not a simple attribute value but a structured derivation. It is unclear whether the 2 bits/parameter law is a general property of transformer computation or specific to lookup-table-like retrieval of factual tuples.
+
+\end{itemize}
+
+% -----------------------------------------------------------------------
+\bibliographystyle{plainnat}
+\bibliography{references}
+% -----------------------------------------------------------------------
+
+\end{document}

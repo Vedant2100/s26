@@ -1,0 +1,165 @@
+\documentclass{article}
+
+\PassOptionsToPackage{numbers, compress}{natbib}
+
+\usepackage[main, final]{neurips_2025}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{amsfonts}
+\usepackage{nicefrac}
+\usepackage{microtype}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{float}
+\usepackage{tikz}
+\usetikzlibrary{positioning, arrows.meta, decorations.pathreplacing, calc}
+
+\title{Paper Review: Weak-to-Strong Generalization}
+
+\author{
+  Vedant Borkute \\
+  Student ID: 862552981
+  NetID: vbork001
+}
+
+\begin{document}
+
+\maketitle
+
+\textbf{Paper title:} Weak-to-Strong Generalization: Eliciting Strong Capabilities with Weak Supervision 
+\textbf{Author(s):} Burns et al. (OpenAI)
+
+% -----------------------------------------------------------------------
+\section{Executive Summary}
+% -----------------------------------------------------------------------
+
+This paper addresses a future potential alignment problem i.e. when supervisors can only provide flawed labels, can a much stronger pretrained model still recover most of its true capability through finetuning, or does it inevitably collapse to imitating its supervisor's mistakes? This is intended as an empirical analog for the \textbf{superalignment problem}, where humans must oversee models whose outputs they cannot reliably evaluate.
+
+% Their principal methodological contribution is the \textit{weak-to-strong} setup itself together with the \textit{Performance Gap Recovered} (PGR) metric. 
+(i) They train a small base model on ground truth to serve as the weak supervisor, \\ (ii) Finetune a much larger pretrained model on the weak supervisor's predictions, and \\
+(iii) Compare against the same large model finetuned on ground truth, which defines the \textit{strong ceiling}. \\ \\
+\textbf{Metric}:
+PGR is the fraction of the (weak, strong-ceiling) accuracy gap that weak supervision recovers. PGR$=1$ matches the ceiling, PGR$=0$ matches the supervisor. 
+
+\textbf{Experiment}: The setup is run across roughly $7$ orders of magnitude of pretraining compute using base models from the GPT-4 family on three task families: $22$ NLP classification benchmarks, Lichess chess puzzles (generative best-move prediction), and the proprietary ChatGPT reward modeling dataset.
+
+\textbf{Result}: Their main result is that finetuning on weak labels already yields positive PGR almost always. Supervising GPT-4 with GPT-2-level labels on NLP recovers roughly $50\%$ of the gap on a median task, and PGR often exceeds $50\%$ for the largest (by pretraining compute) students. Although, the gap to the ceiling is substantial for other task families like reward modeling, where PGR is typically around $10\%$ and rarely exceeds $20\%$. 
+
+% \begin{figure}[H]
+%   \centering
+%   \begin{tikzpicture}[
+%     >={Stealth[length=2.5mm]},
+%     every node/.style={font=\small},
+%   ]
+%     \def\xw{1.2}
+%     \def\xs{5.0}
+%     \def\xc{9.4}
+%
+%     % main axis
+%     \draw[->, thick] (-0.3,0) -- (10.8,0) node[right] {\small task metric (e.g.\ accuracy)};
+%
+%     % markers
+%     \foreach \x in {\xw, \xs, \xc} \filldraw (\x,0) circle (2pt);
+%     \foreach \x in {\xw, \xs, \xc} \draw[thick] (\x,-0.10) -- (\x,0.10);
+%
+%     % labels above each marker
+%     \node[above=4pt, align=center] at (\xw,0)
+%       {\textbf{weak} \\ \scriptsize small model, GT labels};
+%     \node[above=4pt, align=center] at (\xs,0)
+%       {\textbf{weak-to-strong} \\ \scriptsize large model, weak labels};
+%     \node[above=4pt, align=center] at (\xc,0)
+%       {\textbf{strong ceiling} \\ \scriptsize large model, GT labels};
+%
+%     % short brace below: recovered portion (numerator)
+%     \draw[decorate, decoration={brace, amplitude=4pt, mirror, raise=4pt}, thick]
+%       (\xw,0) -- (\xs,0)
+%       node[midway, yshift=-22pt] {\small recovered $=$ w2s $-$ weak};
+%
+%     % long brace below: total gap (denominator)
+%     \draw[decorate, decoration={brace, amplitude=4pt, mirror, raise=28pt}, thick]
+%       (\xw,0) -- (\xc,0)
+%       node[midway, yshift=-46pt] {\small total gap $=$ ceiling $-$ weak};
+%
+%     % PGR formula
+%     \node[anchor=north, align=center] at (5.1, -2.0)
+%       {\(\displaystyle
+%         \mathrm{PGR} \;=\;
+%         \frac{\text{w2s} - \text{weak}}{\text{ceiling} - \text{weak}}
+%         \;\in\;[\,\text{0 (no elicitation)},\ \text{1 (full elicitation)}\,]
+%       \)};
+%   \end{tikzpicture}
+%   \caption{Performance Gap Recovered (PGR). All three quantities lie on a common task-metric axis. The \textit{weak} supervisor is a small model finetuned on ground truth, the \textit{strong ceiling} is a large model finetuned on ground truth, and the \textit{weak-to-strong} student is the same large model finetuned on the weak supervisor's labels. PGR measures what fraction of the (weak, ceiling) gap the student recovers; the auxiliary confidence loss, bootstrapping, and unsupervised generative finetuning each shift the weak-to-strong marker rightward in their respective task families.}
+%   \label{fig:pgr}
+% \end{figure}
+
+They show that three simple interventions each tailored to one task family can substantially improve PGR:
+\begin{itemize}[leftmargin=*]
+  \item \textbf{NLP (Auxiliary confidence loss)}: an additional cross-entropy term that pulls the strong model toward its own hardened predictions when it disagrees with the supervisor. This raised median PGR from $\sim$$25\%$ to $\sim$$80\%$ at the largest weak--strong gaps.
+  \item \textbf{Chess puzzles (Bootstrapping)}: a sequence of intermediate-sized students $M_1 \to M_2 \to \dots \to M_n$ where each $M_{i+1}$ is supervised by $M_i$,  aligning with the ``align-slightly-superhuman-first'' alignment plan.
+  \item \textbf{Unsupervised generative finetuning on RM dialog text (Reward Modeling)}: enrich model representations via unsupervised language modeling on RM text that adds $10$--$20$ PGR points naively and $30$--$40$ when combined with ground-truth early stopping.
+\end{itemize}
+
+A separate set of probing experiments (Section 5.2.3) also show that a linear probe trained with ground truth labels on top of a weakly-finetuned model recovers $\sim$$78\%$ accuracy versus $\sim$$72\%$ from a probe on the base model, closing roughly $60\%$ of the probe--finetune gap. The authors interpret this as evidence that weak supervision's main role is to \textit{elicit} latent capability rather than to teach it, which directly connects the setup to the eliciting-latent-knowledge (ELK) research agenda.
+
+% -----------------------------------------------------------------------
+\section{Strengths}
+% -----------------------------------------------------------------------
+
+\begin{enumerate}[leftmargin=*]
+\item \textbf{The DINO experiment} (Appendix D.1): The central empirical threat to every result in the paper is pretraining leakage i.e. when the strong LLM was pretrained on human-generated text, human-level task performance was absorbed directly during pretraining, and weak-to-strong generalization may simply be the model retrieving what it already memorized rather than genuinely eliciting latent capability from weak signals. The DINO experiment falsifies this as DINO is a self-supervised vision model that never observed any classification labels during pretraining and its knowledge of visual categories was learned implicitly from raw images alone. Yet when supervised by a weak AlexNet classifier, the DINO student achieves roughly $50\%$ PGR, substantially outperforming its supervisor. Since pretraining leakage cannot explain this result by construction, it strengthens with evidence the argument that weak-to-strong generalization is a real mechanistic phenomenon.
+
+  \item \textbf{Section 5's mechanistic findings}: Beyond the top-line metrics, Section 5 gives a coherent mechanism for weak-to-strong behavior: strong models quickly absorb weak-label errors (showing active corruption risk), larger students resist imitating those errors (explaining positive PGR), weak finetuning reorganizes representations so the target concept is more linearly decodable, and confidence loss reduces error imitation most strongly on supervisor-mistake examples.
+%  \begin{enumerate}
+%      \item The overfitting analysis reveals that strong models absorb supervisor errors before completing even a single epoch, which identified active real-time corruption of latent knowledge as the core failure mode rather than classic overfitting. 
+%      \item The inverse scaling result of student size and reluctance to learn supervisor errors despite greater capacity (which is typically true in deep learning with overfitting) is the mechanistic explanation for why positive PGR occurs at all: pretrained representations actively resist fitting error patterns that contradict their internal structure. 
+%      \item The linear decodability experiments show weak supervision's role as representational reorganization rather than injecting new knowledge: weak labels provide a consistent-enough signal about which direction the relevant concept lies in representation space that the model reorganizes its internal geometry around that direction on average, making the ground-truth concept more linearly separable.
+%      \item Finally, analyzing the student-supervisor agreement examples into correct and incorrect subsets shows that the confidence loss specifically suppresses error imitation explaining why the confidence loss helps.
+% \end{enumerate}
+
+% -----------------------------------------------------------------------
+\section{Weaknesses and Improvements}
+% -----------------------------------------------------------------------
+
+\begin{enumerate}[leftmargin=*]
+
+ \item \textbf{Imitation saliency}: The paper's positive results depend critically on an empirical accident of today's models: large pretrained LLMs naturally resist imitating the error patterns of smaller pretrained LLMs, producing the inverse scaling phenomenon which drives positive PGR. But this resistance exists because large LLMs were pretrained to predict human text, not small LLM behavior, so imitating a small model's error patterns is representationally distant, and larger models resist it more strongly precisely because their representations are more deeply organized around human-generated content. This property may not transfer to the future problems.
+
+% \begin{center}
+% \begin{tabular}{lll}
+% \toprule
+% & \textbf{Today (paper's setting)} & \textbf{Future (superhuman)} \\
+% \midrule
+% Strong model trained to imitate & Smaller LLM behavior & Human behavior \\
+% Imitation of supervisor & Representationally distant & Representationally close \\
+% Inverse scaling holds? & Yes; larger resists more & No; larger trained to imitate better \\
+% PGR implication & Positive, grows with size & May collapse with size \\
+% \bottomrule
+% \end{tabular}
+% \end{center}
+
+% Superhuman models will be pretrained on human text and then finetuned extensively via RLHF to predict, reproduce, and satisfy human behavior, making imitation of human supervisors representationally close and trivially easy. The inverse scaling relationship may therefore reverse: larger superhuman models, being better human imitators, may collapse to human-level imitation more readily under weak supervision, achieving high student-supervisor agreement that looks like successful alignment but is actually latent superhuman capability permanently suppressed by imitation pressure. 
+The paper acknowledges this disanalogy in Section 6.1 but offers no experimental test that would distinguish between two interpretations of the positive results: that weak-to-strong works because of genuine elicitation of latent capability, or that it works because today's strong models accidentally resist imitation due to representational distance from their supervisors. An experiment such as we pretrain the strong model on supervisor-like behavior and measure whether PGR collapses would help figure out whether current results will hold in the future superhuman setting (which is the setting the paper is preparing for).
+% \item The second structural weakness is that RL optimization pressure is never tested. The paper evaluates weak-to-strong generalization entirely at the level of reward model accuracy, but what matters in practice is whether the elicited reward model remains a valid optimization target when a policy is trained against it via RL. Reward hacking and Goodharting only manifest under optimization pressure, not in static accuracy evaluations --- a reward model with decent PGR could collapse catastrophically when actually used as an RL objective. Without a single experiment that closes the loop --- train a reward model via weak-to-strong, optimize a policy against it, measure whether the policy improves on ground truth --- the RM section measures a necessary condition but not a sufficient one for alignment in practice.
+\item \textbf{Pretraining leakage} also remains unquantified in the NLP setting, arguably where it matters most, since they produce the paper's strongest results but are also the tasks most vulnerable to leakage, as datasets like BoolQ, HellaSwag, SciQ, and SST-2 almost certainly appear in some form in GPT-4-family pretraining data. When the weak supervisor points at these tasks, the strong model may be retrieving memorized human-level solutions rather than genuinely generalizing beyond weak supervision. Although, the DINO experiemnt helped show that the phenomenon is real in a no-leakage setting and that its results are genuine elicitation in the sense that no classification labels were observed during pretraining, but we do not have a breakdown of the NLP results as genuine elicitation vs retrieval. This makes it difficult to know how much of the reported progress would survive on tasks with provable absence from pretraining data in future superhuman models.
+
+\end{enumerate}
+
+% -----------------------------------------------------------------------
+\section{Other Comments}
+% -----------------------------------------------------------------------
+
+The linear-probing result in Section 5.2.3 implies a different deployment story than the one the paper advances. The implicit recipe is to finetune a large model on weak labels and deploy the result. But if weak finetuning's primary effect is representational reorganization rather than knowledge injection, making the desired concept linearly decodable, perhaps the appropriate workflow would be to use weak labels to briefly reorganize internal geometry, freeze the model, then extract the concept via a linear probe. This reduces the risk of finetuning introducing unintended behavioral changes. Also, a linear probe would be transparent in a way a finetuned model is not as we can inspect which representational dimensions it relies on and verify it is tracking the intended concept as intended.
+
+% -----------------------------------------------------------------------
+% \bibliographystyle{plainnat}
+% \bibliography{references}
+% -----------------------------------------------------------------------
+
+\end{document}
