@@ -1,0 +1,27 @@
+\section*{2. Reinforcement Learning with Verifiable Rewards (RLVR)}
+
+\subsection*{Problem \& Approach}
+Investigate whether a model can learn alien arithmetic using only binary reward signals instead of supervised reasoning trajectories. We implement Group Relative Policy Optimization (GRPO) to train the model, providing a $1.0$ reward for exact integer matches and $0.0$ otherwise, and compare its final accuracy against the supervised LoRA baseline.
+
+
+In GRPO, instead of explicit answers as in LoRA, the model received a sparse binary reward ($1.0$ for an exact integer match, $0.0$ otherwise) without any system definitions of the alien operators. It is very inefficient for it to be able to guess the correct answers and then receive a reward/signal, as compared to LoRA where we include the correct answer phrase, over which it continuously updated gradients.
+LoRA kinda provided every prediction token level gradients where as RLVR provided a gradient for many more predicted tokens.
+\begin{table}[h]
+\centering
+\begin{tabular}{l c c c c}
+\toprule
+\textbf{Method} & \textbf{Overall Acc.} & \textbf{Level 1} & \textbf{Level 2} & \textbf{Level 3} \\
+\midrule
+Supervised LoRA & 36.7\% & 96.0\% & 10.0\% & 4.0\% \\
+RLVR (GRPO) & 8.0\% & 20.0\% & 2.0\% & 2.0\% \\
+\bottomrule
+\end{tabular}
+\caption{Accuracy comparison between LoRA and RLVR.}
+\label{tab:rlvr_results}
+\end{table}
+
+With no guidance and sparse feedback, the model usually answered from its pre-trained arithmetic priors:
+\begin{itemize}
+    \item \textbf{Problem:} \texttt{glorp(flarn(9, 7))} $\rightarrow$ Expected: 16 (Addition) | \textbf{Model Output:} 63
+    \item \textbf{Problem:} \texttt{glorp(snib(13, 10))} $\rightarrow$ Expected: 3 (Subtraction) | \textbf{Model Output:} 130
+\end{itemize}

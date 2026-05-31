@@ -1,0 +1,30 @@
+\section*{1. Adversarial Alien Obfuscation}
+
+\subsection*{Problem \& Approach}
+The goal is to determine if renaming alien operators to semantic strings (e.g., \texttt{combine}) or designed character strings affects the model's ability to reason. We evaluate robustness by replacing the original alien operator names with four obfuscation schemes:
+\begin{itemize}
+    \item \textbf{Semantic}: Similar idea English words (e.g., \texttt{combine}).
+    \item \textbf{Misleading}: Unrelated English words (e.g., \texttt{paint}).
+    \item \textbf{Gibberish}: Random strings (e.g., \texttt{qahft}).
+    \item \textbf{Unicode}: Non-ASCII symbols (e.g., $\Delta$).
+\end{itemize}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{l c c c c}
+\toprule
+\textbf{Scheme} & \textbf{Overall Acc.} & \textbf{Level 1} & \textbf{Level 2} & \textbf{Level 3} \\
+\midrule
+Original & 11.3\% & 30.0\% & 2.0\% & 2.0\% \\
+Gibberish & 10.0\% & 28.0\% & 0.0\% & 2.0\% \\
+Unicode & 6.0\% & 16.0\% & 0.0\% & 2.0\% \\
+Semantic & 0.0\% & 0.0\% & 0.0\% & 0.0\% \\
+Misleading & 0.0\% & 0.0\% & 0.0\% & 0.0\% \\
+\bottomrule
+\end{tabular}
+\caption{Model accuracy under various obfuscation schemes.}
+\label{tab:obfuscation_results}
+\end{table}
+
+In the Semantic and Misleading schemes, the attack worked.
+With meaningless symbols (Original, Gibberish, Unicode), the model could have still treated the prompt as an logic puzzle, solved it and followed the formatting to output exactly \texttt{Final Answer: <number>}, but with real English words it likely triggered conversational priors from training data. The model outputs natural sentences (e.g., \texttt{The final answer is 23.}), which even though correct couldn't be extracted by regex matching and thus marked as failed. 

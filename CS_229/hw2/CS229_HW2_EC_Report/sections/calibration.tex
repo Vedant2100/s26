@@ -1,0 +1,53 @@
+\section*{Additional Calibration Methods for the Emoji Hunter Task}
+
+\subsection*{Problem \& Approach}
+In our original analysis, the base model achieved 78.0\% accuracy with ECE = 0.1278. I explored the following methods as well.
+
+\begin{itemize}
+    \item \textbf{Platt Scaling} (post-hoc): Fits a logistic regression on the model's raw logits using a held-out validation set, learning both a slope and bias.
+    \item \textbf{Weight Decay} (train-time): Adds an L2 penalty $\lambda \|w\|^2$ to the training loss, encouraging smaller weights. We tested $\lambda \in \{10^{-4}, 10^{-3}, 10^{-2}\}$ with Adam and selected the best ECE.
+    \item \textbf{Focal Loss} (train-time): Modifies cross-entropy with a modulating factor $\text{FL}(p_t) = -(1 - p_t)^\gamma \log(p_t)$ that downweights easy examples. We tested $\gamma \in \{1.0, 2.0, 3.0\}$.
+    \item \textbf{Mixup} (train-time): Trains on combinations of input pairs $\tilde{x} = \lambda x_i + (1-\lambda)x_j$ with blended labels, where $\lambda \sim \text{Beta}(\alpha, \alpha)$ . This forces intermediate confidences. We tested $\alpha \in \{0.1, 0.2, 0.4\}$.
+\end{itemize}
+
+\subsection*{Results}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{l l c c}
+\toprule
+\textbf{Type} & \textbf{Method} & \textbf{Accuracy} & \textbf{ECE $\downarrow$} \\
+\midrule
+--- & Base Model & 78.00\% & 0.1278 \\
+\midrule
+Post-hoc & Temp Scaling ($T\!=\!3.0$) & 78.00\% & 0.0373 \\
+Inference & MC Dropout (30 passes) & 77.75\% & 0.1022 \\
+Train-time & Label Smoothing ($\alpha\!=\!0.1$) & 78.00\% & 0.0397 \\
+\midrule
+Post-hoc & Platt Scaling & 77.25\% & 0.0525 \\
+Train-time & Weight Decay ($\lambda\!=\!10^{-2}$) & 77.75\% & 0.1066 \\
+Train-time & Focal Loss ($\gamma\!=\!2.0$) & 78.75\% & \textbf{0.0363} \\
+Train-time & Mixup ($\alpha\!=\!0.4$) & 76.75\% & 0.0805 \\
+\bottomrule
+\end{tabular}
+\caption{Calibration comparison across all methods. ECE = Expected Calibration Error.}
+\label{tab:calibration_results}
+\end{table}
+
+\subsection*{Discussion}
+
+\textbf{Global Summary:} All evaluated methods improved calibration over the base model (ECE = 0.1278). The best overall method was \textbf{Focal Loss} ($\gamma\!=\!2.0$), achieving an ECE of 0.0363, closely followed by Temperature Scaling (0.0373).
+
+\textbf{Best by Category:}
+\begin{itemize}
+    \item \textbf{Train-time:} \textbf{Focal Loss} ($\gamma\!=\!2.0$) was the most effective (ECE = 0.0363). By explicitly downweighting easy examples during training, it natively aligns confidence with accuracy better than Label Smoothing, Mixup, or Weight Decay.
+    \item \textbf{Post-hoc:} \textbf{Temperature Scaling} ($T\!=\!3.0$) performed best (ECE = 0.0373). Despite its simplicity, it outperformed Platt Scaling, likely because Platt Scaling's additional parameters were prone to overfitting on the small validation set.
+    \item \textbf{Inference:} \textbf{MC Dropout} (30 passes) provided only a modest improvement (ECE = 0.1022). It relies on stochastic forward passes rather than directly targeting confidence distributions, making it less effective than the other categories.
+\end{itemize}
+
+% \begin{thebibliography}{9}
+% \bibitem{lin2017focal}
+% T.-Y.\ Lin, P.\ Goyal, R.\ Girshick, K.\ He, and P.\ Doll\'{a}r, ``Focal Loss for Dense Object Detection,'' \textit{arXiv:1708.02002}, 2017.
+% \bibitem{zhang2018mixup}
+% H.\ Zhang, M.\ Ciss\'{e}, Y.\ Dauphin, and D.\ Lopez-Paz, ``mixup: Beyond Empirical Risk Minimization,'' \textit{arXiv:1710.09412}, 2018.
+% \end{thebibliography}
