@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Project deliverables webpage for DiffTrack parameter study, limitations, discussion, and lineage.">
+  <title>DiffTrack Project Deliverables</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header" id="top">
+    <nav class="nav-shell" aria-label="Primary navigation">
+      <a class="brand" href="#top" aria-label="DiffTrack project deliverables home">
+        <span class="brand-mark">ACV</span>
+        <span>Project Deliverables</span>
+      </a>
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-links">
+        <span class="sr-only">Toggle navigation</span>
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <div class="nav-links" id="primary-links">
+        <a href="#part-a">Part A</a>
+        <a href="#part-b">Part B</a>
+        <a href="#discussion">Discussion</a>
+        <a href="#lineage">Lineage</a>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero section-band">
+      <div class="hero-copy">
+        <p class="eyebrow">Extracted from Project deliverables.docx</p>
+        <h1>DiffTrack Parameter Study and Limitation Analysis</h1>
+        <p class="hero-lede">
+          A webpage version of the project deliverables: strengths, targeted
+          failure probes, root-cause discussion, and paper lineage for
+          diffusion-based unsupervised point tracking.
+        </p>
+        <div class="hero-actions" aria-label="Project links">
+          <a class="button primary" href="#part-a">View Results</a>
+          <a class="button secondary" href="https://github.com/YogeshwariPophale/Project-ACV" target="_blank" rel="noreferrer">GitHub Repo</a>
+        </div>
+      </div>
+      <figure class="hero-visual">
+        <img src="assets/lineage-map.svg" alt="Lineage diagram for diffusion correspondence and tracking work.">
+      </figure>
+    </section>
+
+    <section class="snapshot" aria-label="Project highlights">
+      <article>
+        <span class="snapshot-label">Best Layer</span>
+        <strong>Layer 5</strong>
+        <p>34% better than the paper's recommended layer 17.</p>
+      </article>
+      <article>
+        <span class="snapshot-label">Best Timestep</span>
+        <strong>t=10</strong>
+        <p>72% better than the paper's t=49 default.</p>
+      </article>
+      <article>
+        <span class="snapshot-label">Main Bottleneck</span>
+        <strong>92x degradation</strong>
+        <p>Error grows from 0.8 px at delta_1 to 73.8 px at delta_16.</p>
+      </article>
+    </section>
+
+    <section class="content-grid" id="part-a">
+      <aside class="side-note">
+        <p class="eyebrow">Part A</p>
+        <h2>Parameter Study: Strengths</h2>
+      </aside>
+      <div class="content-main">
+        <p class="section-intro">
+          Part A tested three key parameters to understand which configurations
+          produce the best tracking, and to verify the paper's claimed design
+          choices.
+        </p>
+
+        <article class="study-block">
+          <h3>Experiment 1: Layer Selection</h3>
+          <p>
+            <strong>What we tested:</strong> Which of the 42 transformer layers
+            produces the best attention maps for tracking? We tested layers 5,
+            17, and 27, all at timestep t=49.
+          </p>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Layer</th>
+                  <th>Position</th>
+                  <th>delta_avg</th>
+                  <th>delta_1</th>
+                  <th>delta_8</th>
+                  <th>delta_16</th>
+                  <th>vs Baseline</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="best-row">
+                  <td>Layer 5</td>
+                  <td>Early (shallow)</td>
+                  <td>31.3</td>
+                  <td>0.8</td>
+                  <td>51.7</td>
+                  <td>73.8</td>
+                  <td>-34% better</td>
+                </tr>
+                <tr>
+                  <td>Layer 17</td>
+                  <td>Mid (paper default)</td>
+                  <td>47.0</td>
+                  <td>7.0</td>
+                  <td>74.6</td>
+                  <td>81.2</td>
+                  <td>Baseline</td>
+                </tr>
+                <tr>
+                  <td>Layer 27</td>
+                  <td>Deep</td>
+                  <td>37.0</td>
+                  <td>3.7</td>
+                  <td>57.5</td>
+                  <td>73.8</td>
+                  <td>-21% better</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="finding">
+            Finding 1: Layer 5 beats the paper's recommended layer 17 by 34%.
+            Shallow layers preserve fine spatial detail that deep layers abstract away.
+          </p>
+        </article>
+
+        <article class="study-block">
+          <h3>Experiment 2: Timestep Selection</h3>
+          <p>
+            <strong>What we tested:</strong> At which diffusion timestep should
+            attention maps be extracted? We tested t=1, t=10, t=30, and t=49.
+          </p>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Timestep</th>
+                  <th>Noise Level</th>
+                  <th>delta_avg</th>
+                  <th>delta_1</th>
+                  <th>delta_8</th>
+                  <th>delta_16</th>
+                  <th>vs Baseline</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="fail-row">
+                  <td>t=1</td>
+                  <td>Fully clean</td>
+                  <td>0.0</td>
+                  <td>0.0</td>
+                  <td>0.0</td>
+                  <td>0.0</td>
+                  <td>Complete fail</td>
+                </tr>
+                <tr class="best-row">
+                  <td>t=10</td>
+                  <td>Lightly noisy</td>
+                  <td>13.1</td>
+                  <td>0.7</td>
+                  <td>22.1</td>
+                  <td>25.1</td>
+                  <td>-72% better</td>
+                </tr>
+                <tr>
+                  <td>t=30</td>
+                  <td>Moderately noisy</td>
+                  <td>47.8</td>
+                  <td>6.5</td>
+                  <td>73.8</td>
+                  <td>80.9</td>
+                  <td>+2% worse</td>
+                </tr>
+                <tr>
+                  <td>t=49</td>
+                  <td>Heavily noisy (paper)</td>
+                  <td>47.0</td>
+                  <td>7.0</td>
+                  <td>74.6</td>
+                  <td>81.2</td>
+                  <td>Baseline</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="finding">
+            Finding 2: t=1 fails completely, while t=10 gives a 72%
+            improvement over t=49. There is a noise sweet spot: enough noise to
+            activate correspondence, but not so much that features become imprecise.
+          </p>
+        </article>
+
+        <article class="study-block">
+          <h3>Experiment 3: Chunk Frame Interval</h3>
+          <p>
+            <strong>What we tested:</strong> Whether an overlapping 13-frame
+            sliding window meaningfully improves tracking on longer videos.
+          </p>
+          <div class="table-wrap narrow">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Configuration</th>
+                  <th>delta_avg</th>
+                  <th>Difference</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>With chunk frame interval</td>
+                  <td>47.0</td>
+                  <td>Baseline</td>
+                </tr>
+                <tr>
+                  <td>Without chunk frame interval</td>
+                  <td>46.4</td>
+                  <td>-0.6 px, marginal</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="finding">
+            Chunking makes almost no difference. The limitation is architectural,
+            not something a windowing heuristic fixes.
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <section class="content-grid section-band" id="part-b">
+      <aside class="side-note">
+        <p class="eyebrow">Part B</p>
+        <h2>Limitations</h2>
+      </aside>
+      <div class="content-main">
+        <p class="section-intro">
+          Part B tested configurations designed to expose failure modes. The
+          project probed three architectural weaknesses: noise dependency, layer
+          brittleness, and catastrophic temporal degradation.
+        </p>
+
+        <article class="study-block">
+          <h3>Limitation 1: Complete Failure Without Noise</h3>
+          <p><strong>What we tested:</strong> What happens at t=1, where the latent is fully denoised?</p>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Video</th>
+                  <th>Frames</th>
+                  <th>delta_avg</th>
+                  <th>delta_1</th>
+                  <th>delta_8</th>
+                  <th>delta_16</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>Video 0</td><td>69</td><td>0.00</td><td>0.00</td><td>0.00</td><td>0.00</td></tr>
+                <tr><td>Video 1</td><td>50</td><td>0.00</td><td>0.00</td><td>0.00</td><td>0.00</td></tr>
+                <tr><td>Video 2</td><td>80</td><td>0.00</td><td>0.00</td><td>0.00</td><td>0.00</td></tr>
+                <tr><td>Video 3</td><td>84</td><td>0.00</td><td>0.00</td><td>0.00</td><td>0.00</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="finding fail">
+            Limitation 1: DiffTrack has a hard dependency on diffusion noise.
+            At t=1, every prediction is zero across all four test videos.
+          </p>
+        </article>
+
+        <article class="study-block">
+          <h3>Limitation 2: Layer Sensitivity and Brittleness</h3>
+          <p><strong>What we tested:</strong> Layers 8 and 29, compared with layer 5, layer 17, and layer 27.</p>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Layer</th>
+                  <th>delta_avg</th>
+                  <th>delta_1</th>
+                  <th>delta_16</th>
+                  <th>Relative to Baseline</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="best-row"><td>Layer 5</td><td>31.3</td><td>0.8</td><td>73.8</td><td>-34% better</td></tr>
+                <tr><td>Layer 8</td><td>41.9</td><td>2.9</td><td>84.3</td><td>-11% better</td></tr>
+                <tr class="fail-row"><td>Layer 17</td><td>47.0</td><td>7.0</td><td>81.2</td><td>Baseline, worst tested</td></tr>
+                <tr><td>Layer 27</td><td>37.0</td><td>3.7</td><td>73.8</td><td>-21% better</td></tr>
+                <tr><td>Layer 29</td><td>38.0</td><td>3.8</td><td>77.2</td><td>-19% better</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="finding fail">
+            Limitation 2: Layer 17, the paper's default, is the worst-performing
+            layer of all five tested. Performance varies 50% across layers with
+            no principled selection criterion.
+          </p>
+        </article>
+
+        <article class="study-block">
+          <h3>Limitation 3: Catastrophic Temporal Degradation</h3>
+          <p><strong>What we tested:</strong> Tracking error at frame gaps delta_1 through delta_16.</p>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Frame Gap</th>
+                  <th>Error</th>
+                  <th>Meaning</th>
+                  <th>Degradation</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="best-row"><td>delta_1</td><td>0.8 px</td><td>Near-perfect</td><td>1x</td></tr>
+                <tr><td>delta_2</td><td>6.8 px</td><td>Good</td><td>9x worse</td></tr>
+                <tr><td>delta_4</td><td>23.3 px</td><td>Moderate</td><td>29x worse</td></tr>
+                <tr><td>delta_8</td><td>51.7 px</td><td>Poor</td><td>65x worse</td></tr>
+                <tr class="fail-row"><td>delta_16</td><td>73.8 px</td><td>Failure</td><td>92x worse</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="finding fail">
+            Limitation 3: Error increases 92x from a 1-frame to 16-frame gap.
+            The method has no temporal memory, velocity model, or trajectory history.
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <section class="content-grid" id="discussion">
+      <aside class="side-note">
+        <p class="eyebrow">Discussion</p>
+        <h2>Confirmed vs. contradicted</h2>
+      </aside>
+      <div class="content-main">
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Paper's Claim</th>
+                <th>Our Finding</th>
+                <th>Verdict</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="fail-row"><td>t=49 is the best timestep</td><td>t=10 is 72% better; t=49 is suboptimal</td><td>Contradicted</td></tr>
+              <tr class="fail-row"><td>Layer 17 is recommended</td><td>Layer 17 is the worst layer tested</td><td>Contradicted</td></tr>
+              <tr class="best-row"><td>Diffusion features enable tracking</td><td>Confirmed: strong at delta_1</td><td>Confirmed</td></tr>
+              <tr class="best-row"><td>Cross-attention encodes correspondence</td><td>Confirmed by attention score data</td><td>Confirmed</td></tr>
+              <tr class="best-row"><td>Method is unsupervised</td><td>Confirmed: zero labels, zero training</td><td>Confirmed</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="info-grid discussion-grid">
+          <article class="info-card">
+            <h3>Root Cause 1: Noise Dependency</h3>
+            <p>The cross-frame correspondence mechanism exists because of denoising. Too little noise fails; too much noise degrades feature precision.</p>
+          </article>
+          <article class="info-card">
+            <h3>Root Cause 2: Instantaneous Matching</h3>
+            <p>Each frame is independently compared to frame 0. There is no memory, velocity estimate, or trajectory model.</p>
+          </article>
+          <article class="info-card">
+            <h3>Root Cause 3: No Layer Criterion</h3>
+            <p>Point tracking needs fine spatial precision, but the method provides no reliable way to select the best layer for a new domain.</p>
+          </article>
+        </div>
+
+        <div class="takeaway-panel compact">
+          <h3>New Findings Not in the Original Paper</h3>
+          <ul class="check-list">
+            <li>Timestep t=10 is a sweet spot and improves delta_avg by 72% over t=49.</li>
+            <li>Cross-attention saturates early, so running to t=49 wastes compute for tracking.</li>
+            <li>Layer 17 is the worst layer among the five tested configurations.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="content-grid section-band" id="lineage">
+      <aside class="side-note">
+        <p class="eyebrow">Lineage</p>
+        <h2>Previous and forward papers</h2>
+      </aside>
+      <div class="content-main">
+        <article class="study-block">
+          <h3>Previous Papers</h3>
+          <div class="lineage-list">
+            <article><strong>Emergent Correspondence from Image Diffusion</strong><span>Direct foundation: extends image correspondence to video and full temporal sequences.</span></article>
+            <article><strong>Space-Time Correspondence as a Contrastive Random Walk</strong><span>Motivated temporal matching metrics and long-range consistency evaluation.</span></article>
+            <article><strong>Semantics Meets Temporal Correspondence</strong><span>Inspired analysis of semantic and text-attention interference in temporal matching.</span></article>
+            <article><strong>Self-Rectifying Diffusion Sampling with Perturbed-Attention Guidance</strong><span>Predecessor to Cross-Frame Attention Guidance.</span></article>
+            <article><strong>TAP-Vid, CoTracker, CoTracker3, and Particle Video Revisited</strong><span>Provided benchmark context, pseudo-ground-truth, and long-range tracking motivation.</span></article>
+          </div>
+        </article>
+
+        <article class="study-block">
+          <h3>Forward Lineage</h3>
+          <div class="lineage-list">
+            <article><strong>Point Prompting</strong><span>Extends zero-shot tracking by propagating point markers through diffusion denoising.</span></article>
+            <article><strong>DiTFlow</strong><span>Extracts attention motion flow from cross-frame attention maps for motion transfer.</span></article>
+            <article><strong>ZeroTrail</strong><span>Turns Cross-Frame Attention Guidance into a trajectory-control system.</span></article>
+            <article><strong>Weighted Cross-Frame Attention for T2V</strong><span>Weights cross-frame attention to stabilize long video generation.</span></article>
+            <article><strong>Video Diffusion Restoration and Deraining</strong><span>Uses temporal correspondence in video diffusion models to improve consistency in zero-shot restoration tasks.</span></article>
+          </div>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>DiffTrack Project Deliverables | Yogeshwari Pophale</p>
+    <a href="#top">Back to top</a>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>

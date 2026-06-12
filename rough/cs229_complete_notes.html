@@ -1,0 +1,507 @@
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Georgia',serif;background:#0f1117;color:#e2e8f0;min-height:100vh}
+#wrap{display:flex;max-width:1100px;margin:0 auto;padding:1.5rem 1rem}
+#toc{width:210px;flex-shrink:0;position:sticky;top:1rem;height:calc(100vh - 2rem);overflow-y:auto;padding-right:1rem;border-right:1px solid #2d3748}
+#toc h3{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#718096;margin-bottom:.75rem}
+#toc a{display:block;font-size:12px;font-family:'Courier New',monospace;color:#a0aec0;text-decoration:none;padding:2px 0;line-height:1.6;border-left:2px solid transparent;padding-left:6px}
+#toc a:hover,#toc a.active{color:#68d391;border-left-color:#68d391}
+main{flex:1;padding-left:2rem;max-width:820px}
+h1{font-size:22px;font-weight:700;color:#f7fafc;margin-bottom:.25rem;letter-spacing:-.3px}
+.sub{font-size:12px;color:#718096;font-family:'Courier New',monospace;margin-bottom:2rem}
+section{margin-bottom:3rem}
+section h2{font-size:15px;font-weight:700;color:#68d391;font-family:'Courier New',monospace;letter-spacing:.05em;text-transform:uppercase;margin-bottom:1rem;padding-bottom:.4rem;border-bottom:1px solid #2d3748}
+h3{font-size:13px;font-weight:600;color:#90cdf4;margin:1.25rem 0 .5rem;font-family:'Courier New',monospace}
+p,li{font-size:13.5px;line-height:1.75;color:#cbd5e0}
+ul{list-style:none;padding-left:0}
+ul li{padding-left:1.2rem;position:relative;margin-bottom:.2rem}
+ul li::before{content:'›';position:absolute;left:0;color:#68d391}
+.formula-block{background:#1a202c;border:1px solid #2d3748;border-left:3px solid #68d391;padding:.75rem 1rem;border-radius:4px;margin:.75rem 0;overflow-x:auto;font-size:14px;text-align:center}
+.formula-inline{background:#1a202c;padding:1px 6px;border-radius:3px;font-size:13px}
+table{width:100%;border-collapse:collapse;margin:.75rem 0;font-size:12.5px}
+th{background:#1a202c;color:#90cdf4;text-align:left;padding:6px 10px;font-family:'Courier New',monospace;font-size:11px;letter-spacing:.05em;border-bottom:1px solid #4a5568}
+td{padding:6px 10px;border-bottom:1px solid #2d3748;color:#cbd5e0;vertical-align:top}
+tr:hover td{background:#1a202c}
+.tag{display:inline-block;font-size:10px;padding:1px 7px;border-radius:99px;border:1px solid;margin-left:6px;vertical-align:middle;font-family:'Courier New',monospace}
+.tag.quiz{color:#f6ad55;border-color:#f6ad55}
+.tag.hw{color:#9f7aea;border-color:#9f7aea}
+.tag.miss{color:#fc8181;border-color:#fc8181}
+code{font-family:'Courier New',monospace;font-size:12px;background:#1a202c;padding:1px 5px;border-radius:3px;color:#9ae6b4}
+.warn{background:#2d1f1f;border-left:3px solid #fc8181;padding:.5rem .75rem;border-radius:4px;font-size:13px;color:#fbd38d;margin:.5rem 0}
+</style>
+
+<div id="wrap">
+<nav id="toc">
+<h3>CS 229 Notes</h3>
+<a href="#s1">1. ML Basics</a>
+<a href="#s2">2. Tokenization</a>
+<a href="#s3">3. Transformers</a>
+<a href="#s4">4. LLM Training</a>
+<a href="#s5">5. Prompting & LoRA</a>
+<a href="#s6">6. Scaling & Goodhart</a>
+<a href="#s7">7. Vision & CNNs</a>
+<a href="#s8">8. Contrastive Learning</a>
+<a href="#s9">9. Calibration</a>
+<a href="#s10">10. Bayesian DL</a>
+<a href="#s11">11. Optimization</a>
+<a href="#s12">12. Generative Models</a>
+<a href="#s13">13. Graph Neural Nets</a>
+<a href="#s14">14. Formula Sheet</a>
+</nav>
+<main>
+<h1>CS 229 — Complete Notes</h1>
+<div class="sub">Spring 2026 · Ver Steeg · All lectures, quizzes & assignments</div>
+
+<section id="s1">
+<h2>1. ML Basics <span class="tag quiz">Quiz 0</span> <span class="tag hw">HW0</span></h2>
+<h3>Probability</h3>
+<ul>
+<li><strong>Normalization:</strong> discrete PMF sums to 1; continuous PDF integrates to 1. PDF can exceed 1 but $p(z) \geq 0$ always</li>
+<li><strong>Marginalization:</strong> $P(X{=}0) = \sum_y P(X{=}0, Y{=}y)$</li>
+<li><strong>Conditioning:</strong> $P(Y|X) = \frac{P(X,Y)}{P(X)}$</li>
+<li><strong>Bayes rule:</strong> $p(\theta|D) \propto p(D|\theta)\cdot p(\theta)$ — posterior $\propto$ likelihood $\times$ prior</li>
+<li><strong>MAP:</strong> $\hat\theta = \arg\max_\theta p(\theta|D)$ — single most probable model, uses prior as regularizer</li>
+</ul>
+<h3>Softmax <span class="tag quiz">Q0 Q12</span></h3>
+<div class="formula-block">$$\text{softmax}(z_i) = \frac{e^{z_i}}{\sum_j e^{z_j}}$$</div>
+<ul>
+<li>Temperature $T$: divide logits by $T$ before softmax. $T\to 0$ → argmax. $T\to\infty$ → uniform</li>
+<li>Example: logits $(0, \log 3)$ → probabilities $(\tfrac{1}{4}, \tfrac{3}{4})$. Logits $(-\log 2, +\log 2)$ → $(\tfrac{1}{5}, \tfrac{4}{5})$</li>
+</ul>
+<h3>PyTorch Basics <span class="tag quiz">Q0</span> <span class="tag miss">missed</span></h3>
+<ul>
+<li><code>nn.Linear(in, out)</code> — first arg = input dim, second = output dim</li>
+<li><code>A * B</code> = element-wise. <code>A @ B</code> = matrix multiply. <strong>A*B does NOT matrix-multiply</strong></li>
+<li><code>loss.backward()</code> → stores gradients in <code>.grad</code>. Does NOT update params, zero grads, or free memory</li>
+<li>Training order: forward → loss → <code>zero_grad()</code> → <code>backward()</code> → <code>step()</code></li>
+</ul>
+<h3>GD vs SGD <span class="tag quiz">Q0</span></h3>
+<ul>
+<li><strong>GD:</strong> full dataset per update. Deterministic. More likely stuck in local minima</li>
+<li><strong>SGD:</strong> random mini-batches. Noise = exploration. Less likely to get stuck</li>
+</ul>
+</section>
+
+<section id="s2">
+<h2>2. Tokenization & Embeddings <span class="tag quiz">Q1</span> <span class="tag hw">HW0/1</span></h2>
+<h3>BPE Tokenization</h3>
+<ul>
+<li>Start from characters, iteratively merge most frequent adjacent pairs into new tokens</li>
+<li>New words → known subwords: "ghostable" → "ghost-able", "rethinkable" → "re-think-able"</li>
+<li>Padding: sequences padded to fixed length with pad token (id=0), left-aligned</li>
+<li>HW0 mapping: $\text{ord}(c) - 96$, so a=1, b=2, …, z=26. tokenize("cat") = [3, 1, 20, 0, …]</li>
+</ul>
+<h3>Embeddings</h3>
+<ul>
+<li><code>nn.Embedding(V, d)</code>: lookup table, integer ID → dense float vector. Output: (seq_len, d)</li>
+<li>Flatten for MLP input: (seq_len × d). HW0 NameMLP: Embedding → <strong>Flatten</strong> → Linear(240,128) → ReLU → …</li>
+</ul>
+</section>
+
+<section id="s3">
+<h2>3. Transformers <span class="tag quiz">Q1 Q2</span> <span class="tag hw">HW1</span></h2>
+<h3>Self-Attention</h3>
+<div class="formula-block">$$\text{Attention}(Q,K,V) = \text{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right)V$$</div>
+<ul>
+<li>Each token → Q (query), K (key), V (value) via learned projections</li>
+<li><strong>$\sqrt{d_k}$ scaling:</strong> without it, dot products grow with $d$ → softmax saturates → near-one-hot attention → gradient death at init. Acts as temperature. <em>Does NOT normalize softmax output</em> <span class="tag miss">missed Q6</span></li>
+<li><strong>Complexity:</strong> $O(N^2 \cdot d)$ — must compute all $N^2$ pairwise dot products. Dominant cost in LLMs</li>
+<li>Output at position $i$ = weighted sum of value vectors: $\sum_j \alpha_{ij} v_j$</li>
+</ul>
+<div class="warn">Quiz miss: The $\sqrt{d_k}$ factor is a TEMPERATURE, not a normalizer. Softmax already sums to 1 regardless of scale.</div>
+<h3>Positional Embeddings</h3>
+<ul>
+<li>Without them: transformer is permutation-invariant — can't distinguish word order</li>
+<li><strong>Sinusoidal / learned:</strong> added to token embeddings. Original Transformer used sinusoidal</li>
+<li><strong>RoPE:</strong> apply rotation matrix to Q, K so dot product depends on relative position. $q_m^\top k_n = f(q,m)^\top f(k,n)$ encodes offset $m-n$. Used in LLaMA, Qwen</li>
+<li><strong>ALiBi:</strong> add linear biases $-|i-j|$ to attention scores based on distance</li>
+<li><strong>NoPE:</strong> no positional embedding — works in causal setting because context size implies position (Sahraee-Ardakan et al. 2026 — also used in HW3 ViT)</li>
+</ul>
+<h3>KV Cache</h3>
+<ul>
+<li>At inference: past K, V don't change as new tokens are generated. Cache them → no recomputation</li>
+<li>Memory cost: $O(N \cdot d \cdot L)$ for sequence length $N$, dim $d$, layers $L$</li>
+<li><strong>TurboQuant:</strong> quantize KV cache to 4-bit. Problem: nearly-sparse vectors lose info. Fix: apply random rotation matrix first, then quantize, inverse-rotate to recover</li>
+</ul>
+<h3>BERT vs GPT <span class="tag quiz">Q1</span> <span class="tag miss">missed</span></h3>
+<table>
+<tr><th></th><th>GPT</th><th>BERT</th></tr>
+<tr><td>Style</td><td>Decoder-only, causal</td><td>Encoder-only, bidirectional</td></tr>
+<tr><td>Pretraining</td><td>Next-token prediction</td><td>Masked Language Modeling (MLM)</td></tr>
+<tr><td>Probability model</td><td>Yes — $p(\text{sequence})$</td><td><strong>No</strong></td></tr>
+<tr><td>MLM details</td><td>—</td><td>Mask 15%: 80%→[MASK], 10%→random, 10%→unchanged</td></tr>
+</table>
+<div class="warn">Only GPT gives a probability distribution over sequences. BERT uses MLM which breaks the autoregressive factorization.</div>
+<h3>Causal Attention & Flash Attention</h3>
+<ul>
+<li>Causal mask: upper triangle set to $-\infty$ before softmax. Position $i$ sees only $0\ldots i$</li>
+<li>Flash Attention: tiles computation in SRAM, avoids materializing $N\times N$ matrix. Same math, much faster</li>
+</ul>
+</section>
+
+<section id="s4">
+<h2>4. LLM Training Pipeline <span class="tag hw">HW1</span></h2>
+<h3>Training Stages</h3>
+<ul>
+<li><strong>Stage 0 — Pretraining:</strong> next-token prediction on massive text corpora. Cross-entropy loss. All positions predicted in parallel (causal mask). Requires BOS token.</li>
+<li><strong>Stage 1 — SFT:</strong> fine-tune on (instruction, response) pairs. Same loss. Teaches format/chat style</li>
+<li><strong>Stage 2 — RLHF:</strong> align to human preferences via RL</li>
+<li><strong>Stage 3 — Distillation + Quantization:</strong> compress to smaller, deployable model</li>
+<li><strong>Modern insight:</strong> pretrain on $A \cup B \cup C$ jointly, then fine-tune. Avoids catastrophic forgetting</li>
+</ul>
+<h3>PPO / DPO / GRPO</h3>
+<ul>
+<li><strong>PPO</strong> (ChatGPT/GPT-3): train reward model from ranked preferences, maximize reward with RL. KL penalty to stay near reference policy. Clipped surrogate objective.</li>
+<li><strong>DPO</strong> (Qwen, Llama): no separate reward model. Directly optimize on ranked pairs via reparameterized PPO objective. Simpler.</li>
+<li><strong>GRPO</strong> (DeepSeek): generate $G$ responses per prompt, compute rule-based rewards $r_1\ldots r_G$, advantage = $(r_i - \bar{r})/\sigma_r$. Clip updates. No value model needed. Verifiable rewards: math correctness, code compiles, format tags (&lt;think&gt;)</li>
+</ul>
+</section>
+
+<section id="s5">
+<h2>5. Prompting & LoRA <span class="tag quiz">Q2</span> <span class="tag hw">HW1</span></h2>
+<h3>Prompting Methods — HW1 Results</h3>
+<table>
+<tr><th>Method</th><th>Overall</th><th>Level 1</th><th>Key Idea</th></tr>
+<tr><td>Base</td><td>4.7%</td><td>10%</td><td>Minimal instruction</td></tr>
+<tr><td>System</td><td>11.3%</td><td>30%</td><td>Define operators in system msg</td></tr>
+<tr><td>CoT</td><td>16.0%</td><td>38%</td><td>Step-by-step reasoning</td></tr>
+<tr><td>ICL</td><td>10.7%</td><td>28%</td><td>Few-shot solved examples</td></tr>
+<tr><td><strong>LoRA</strong></td><td><strong>36.7%</strong></td><td><strong>96%</strong></td><td>Fine-tuned weights</td></tr>
+</table>
+<ul>
+<li>ICL insight: what drives performance = label space + format, NOT whether example labels are correct</li>
+<li>CoT fails on 0.5B model: too small, verbose reasoning gets cut off by token budget</li>
+</ul>
+<h3>LoRA <span class="tag quiz">Q2</span></h3>
+<ul>
+<li>Freeze $W \in \mathbb{R}^{d_\text{out}\times d_\text{in}}$. Add $\Delta W = BA$ where $A\in\mathbb{R}^{r\times d_\text{in}}, B\in\mathbb{R}^{d_\text{out}\times r}$</li>
+<li>Trainable params per layer: $r(d_\text{in} + d_\text{out})$ vs $d_\text{in}\cdot d_\text{out}$ for full fine-tuning</li>
+</ul>
+<div class="formula-block">$$\text{LoRA params} = r(d_\text{in} + d_\text{out}) \ll d_\text{in} \cdot d_\text{out}$$</div>
+<ul>
+<li>Merge after training: $W' = W + BA$. Zero inference overhead</li>
+<li><strong>Rank-1 matrix:</strong> outer product of two vectors — all rows proportional <span class="tag quiz">Q2</span></li>
+<li><strong>QLoRA:</strong> quantize frozen base to 4-bit, keep LoRA adapters in float16</li>
+<li>Applied to: q_proj + v_proj (original paper); all attention + MLP (modern default)</li>
+</ul>
+</section>
+
+<section id="s6">
+<h2>6. Scaling Laws & Goodhart's Law</h2>
+<h3>Scaling Laws</h3>
+<ul>
+<li>Test loss follows a power law: $L \propto N^{-\alpha}$ in model params $N$ (and similarly in data $D$)</li>
+<li><strong>Chinchilla:</strong> compute-optimal = scale $N$ and $D$ equally. GPT-3-era models were undertrained.</li>
+<li>Key takeaway: "Compute-optimal training requires <strong>under-fitting</strong>" — stop before full convergence</li>
+<li>Emergent capabilities (e.g., chain-of-thought) appear suddenly at scale, not gradually</li>
+<li>Beyond scaling: test-time compute (o1/o3 reasoning), architectural improvements</li>
+</ul>
+<h3>Goodhart's Law</h3>
+<ul>
+<li>"When a measure becomes a target, it ceases to be a good measure"</li>
+<li>Education example: teaching to standardized tests → scores up but underlying skills unchanged</li>
+<li><strong>Paperclip optimizer:</strong> AI tasked to maximize paperclips → converts all matter including humans</li>
+<li>LLM Goodharting: test set leaks into training data; researchers optimize benchmarks over real use</li>
+<li>Does Claude know when it's being tested and behave differently? (Ver Steeg showed model card evidence)</li>
+</ul>
+</section>
+
+<section id="s7">
+<h2>7. Computer Vision & CNNs <span class="tag quiz">Q2</span> <span class="tag hw">HW3</span></h2>
+<h3>Convolution <span class="tag quiz">Q2</span></h3>
+<ul>
+<li><strong>Valid (no padding):</strong> output length $= |x| - |h| + 1$</li>
+<li><strong>Same padding:</strong> output same size as input</li>
+<li><strong>Stride $s$:</strong> output $= \lfloor(|x|-|h|)/s\rfloor + 1$</li>
+<li>2D example: input $(32,32,3)$, kernel $3\times3$, same padding, 4 channels → output $(32,32,4)$</li>
+</ul>
+<h3>1×1 Convolution</h3>
+<ul>
+<li>Kernel size 1: linear transform across channels at each spatial location</li>
+<li>Changes channel count without changing spatial dims. Pointwise fully-connected per pixel</li>
+</ul>
+<h3>Fully Convolutional Networks <span class="tag quiz">Q2</span></h3>
+<ul>
+<li>No FC layers → works on any input size. FC layers require fixed size.</li>
+<li>Pooling, strided conv, dropout all compatible with variable size</li>
+</ul>
+<h3>Rotation Properties <span class="tag quiz">Q2</span></h3>
+<ul>
+<li><strong>Invariance:</strong> output unchanged by rotation → classification ("is it a cat?" yes regardless of angle)</li>
+<li><strong>Equivariance:</strong> rotating input rotates output → segmentation (segmentation map rotates with image)</li>
+</ul>
+<h3>Architectures</h3>
+<ul>
+<li><strong>ResNet:</strong> skip connections $h(x) = F(x) + x$ — trains very deep networks</li>
+<li><strong>U-Net:</strong> encoder-decoder with skip connections. Segmentation + generation (denoiser)</li>
+<li><strong>ViT:</strong> split image into $P\times P$ patches, flatten + linear embed, run transformer. HW3: 8×8 patches, 16 patches total per $32\times32$ image. No spatial inductive bias.</li>
+<li><strong>Deep Image Prior:</strong> untrained U-Net architecture alone is sufficient prior for image reconstruction. Networks fit natural images before noise.</li>
+</ul>
+</section>
+
+<section id="s8">
+<h2>8. Self-supervised & Contrastive Learning <span class="tag quiz">Q3</span> <span class="tag hw">HW2</span></h2>
+<h3>Core Idea</h3>
+<ul>
+<li>Learn representations without labels via pretext tasks</li>
+<li>Early pretext tasks: predict rotation, predict relative patch position, solve jigsaw puzzle</li>
+<li>Modern: contrastive learning on augmented views</li>
+</ul>
+<h3>InfoNCE / CPC Loss <span class="tag quiz">Q3</span> <span class="tag miss">missed</span></h3>
+<div class="formula-block">$$\mathcal{L}_\text{InfoNCE} = -\log\frac{\exp(z_a \cdot z_p)}{\exp(z_a \cdot z_p) + \exp(z_a \cdot z_n)}$$</div>
+<ul>
+<li>Anchor $z_a$, positive $z_p$ (same image, different aug), negative $z_n$ (different image)</li>
+<li>Minimizing = pushing anchor toward positive, away from negatives</li>
+<li>Full form with many negatives: $-\log\frac{\exp(z_a \cdot z_p)}{\exp(z_a \cdot z_p) + \sum_{k}\exp(z_a \cdot z_k^-)}$</li>
+<li>For HW (2-class): choose $(z_p, z_n)$ that minimizes loss = maximize $z_a\cdot z_p$ and minimize $z_a \cdot z_n$</li>
+</ul>
+<h3>SimCLR</h3>
+<ul>
+<li>Augmentations: random crop, color jitter, grayscale, horizontal flip, Gaussian blur</li>
+<li>InfoNCE loss over large batch — more negatives per batch = better representations</li>
+<li>Project to lower-dim for loss (projection head); use higher-dim for downstream tasks</li>
+</ul>
+<h3>CLIP</h3>
+<ul>
+<li>Positive pairs: (image, its caption). Negatives: all other (image, caption) combos in batch</li>
+<li>Jointly embeds images and text in shared cosine similarity space</li>
+<li>Zero-shot: embed test image + class names, pick highest similarity</li>
+</ul>
+<h3>DINO</h3>
+<ul>
+<li>Student-teacher: teacher = EMA of student weights (no teacher gradients)</li>
+<li>Both receive different augmented views; student predicts teacher's "pseudo-label" distribution</li>
+<li>ViT backbone: attention heads learn to segment objects with zero labels</li>
+<li>Augmentations: same as SimCLR + solarization (invert pixels above threshold)</li>
+<li>DINOv2/v3: scaling + patch-level losses (iBOT masked patch prediction + Gram Anchoring)</li>
+</ul>
+</section>
+
+<section id="s9">
+<h2>9. Uncertainty & Calibration <span class="tag quiz">Q3</span> <span class="tag hw">HW2</span></h2>
+<h3>Two Types of Uncertainty</h3>
+<ul>
+<li><strong>Aleatoric</strong> (data): irreducible — labeling noise, measurement noise, missing features. Persists with infinite data.</li>
+<li><strong>Epistemic</strong> (model): reducible — many models fit the data, uncertain which is correct. Vanishes with infinite data.</li>
+</ul>
+<h3>Expected Calibration Error <span class="tag quiz">Q3</span></h3>
+<div class="formula-block">$$\text{ECE} = \sum_{b=1}^{B} \frac{n_b}{N} \left|\text{acc}(b) - \text{conf}(b)\right|$$</div>
+<ul>
+<li>Bin predictions by confidence. Per bin: $|\text{mean accuracy} - \text{mean confidence}|$</li>
+<li>Overconfident: confidence > accuracy. Underconfident: confidence < accuracy</li>
+<li>Binary ECE: use $P(\text{positive class})$ as confidence — allows full $[0,1]$ range, not just $[0.5,1]$</li>
+<li><strong>ECE=0 ≠ accurate.</strong> Always predicting base rate $p(y{=}1) = 0.3$ → perfect calibration, bad accuracy</li>
+</ul>
+<div class="warn">Quiz Q4 miss: 80% confidence, 5/5 rain → accuracy=100%, conf=80% → ECE=0.2, UNDERCONFIDENT (actual > predicted)</div>
+<h3>OOD & Adversarial Overconfidence</h3>
+<ul>
+<li>Neural nets assign high confidence to OOD inputs (static noise, adversarial perturbations)</li>
+<li>Classifiers under-constrained far from training manifold — logits can be arbitrary there</li>
+<li>ImageNet-C: accuracy drops monotonically with corruption severity; calibration degrades too</li>
+<li>Covariate shift: $p(x)$ changes, $p(y|x)$ fixed. Accuracy drops AND model stays overconfident.</li>
+</ul>
+<h3>Calibration Methods — HW2 Results</h3>
+<table>
+<tr><th>Method</th><th>ECE</th><th>When</th><th>How</th></tr>
+<tr><td>Base model</td><td>0.1278</td><td>—</td><td>Baseline (overconfident)</td></tr>
+<tr><td>MC Dropout</td><td>0.1022</td><td>Inference</td><td>30 passes, avg softmax probs</td></tr>
+<tr><td>Label Smoothing</td><td>0.0397</td><td>Training</td><td><code>CrossEntropyLoss(label_smoothing=0.1)</code></td></tr>
+<tr><td><strong>Temp Scaling T=3</strong></td><td><strong>0.0373</strong></td><td>Post-hoc</td><td>Divide logits by $T$, tune on val set</td></tr>
+</table>
+<ul>
+<li>Proper scoring rules: NLL (=cross-entropy, emphasizes tails), Brier score (quadratic, bounded [0,1])</li>
+</ul>
+</section>
+
+<section id="s10">
+<h2>10. Bayesian Deep Learning</h2>
+<h3>Bayesian Framework</h3>
+<div class="formula-block">$$p(\theta|D) \propto p(D|\theta)\cdot p(\theta) \qquad \text{posterior} \propto \text{likelihood} \times \text{prior}$$</div>
+<ul>
+<li>MAP = argmax posterior. Full Bayes = integrate over all $\theta$</li>
+<li><strong>BMA:</strong> $p(y|x,D) = \int p(y|x,\theta)\, p(\theta|D)\, d\theta$ — average predictions weighted by posterior</li>
+<li>Deep learning: many equally good solutions exist. BMA reduces variance, improves calibration.</li>
+</ul>
+<h3>Practical Approximations</h3>
+<ul>
+<li><strong>Laplace approximation:</strong> fit Gaussian $\mathcal{N}(\theta_\text{MAP}, H^{-1})$ around MAP using Hessian $H$</li>
+<li><strong>Variational Bayes:</strong> learn $q(\theta)$ to approximate $p(\theta|D)$ by minimizing $\text{KL}(q\|p)$. Didn't work well in practice — too noisy, approximation too crude.</li>
+<li><strong>SWA (Stochastic Weight Averaging):</strong> average weights along SGD trajectory → better generalization than single endpoint</li>
+<li><strong>SWAG:</strong> fit Gaussian over SWA weight iterates (first + second moments) → sample for BMA</li>
+<li><strong>Deep Ensembles:</strong> re-run SGD with different seeds, average predictions. Best in practice, especially under distribution shift. Expensive: $N\times$ compute.</li>
+</ul>
+</section>
+
+<section id="s11">
+<h2>11. Optimization Dynamics <span class="tag quiz">Q4</span></h2>
+<h3>SGD & Noise</h3>
+<div class="formula-block">$$\text{noise} \propto \frac{\eta}{\text{batch size}} \quad\Rightarrow\quad \text{scale LR linearly with batch size}$$</div>
+<ul>
+<li>4× batch size → 4× learning rate (NOT divide) <span class="tag miss">missed Q1</span></li>
+<li>Large LR = more noise = more exploration. LR scheduler: warm-up then cosine decay</li>
+</ul>
+<h3>SGD as Langevin Dynamics</h3>
+<div class="formula-block">$$\theta_{t+1} = \theta_t - \eta\nabla\mathcal{L}(\theta_t) + \sqrt{2\eta}\,\varepsilon, \quad \varepsilon\sim\mathcal{N}(0,I)$$</div>
+<ul>
+<li>SGD ≈ gradient descent + Gaussian noise injection → samples from a distribution, not just a point</li>
+<li>Stationary distribution $\approx \exp(-\mathcal{L}/T)$ where $T \propto \eta/\text{batch size}$</li>
+<li><strong>Fokker-Planck equation:</strong> governs how probability density evolves under stochastic dynamics. Used to derive SGD's stationary distribution.</li>
+<li>This is why SGD generalizes better than GD — explores loss landscape, prefers wide flat minima</li>
+</ul>
+<h3>Momentum <span class="tag quiz">Q4</span></h3>
+<div class="formula-block">$$v_t = \mu v_{t-1} + \eta g_t, \qquad \theta_t = \theta_{t-1} - v_t$$</div>
+<ul>
+<li>Smooths gradient noise. Accelerates consistent directions. Dampens oscillations.</li>
+<li>Extra memory cost: must store velocity vector $v_t$ between updates</li>
+<li><strong>Nesterov:</strong> evaluate gradient at predicted next position — optimal convergence for convex functions</li>
+</ul>
+<h3>Adam <span class="tag quiz">Q4</span></h3>
+<div class="formula-block">$$m_t = \beta_1 m_{t-1} + (1-\beta_1)g_t \qquad v_t = \beta_2 v_{t-1} + (1-\beta_2)g_t^2$$</div>
+<div class="formula-block">$$\theta_{t+1} = \theta_t - \frac{\eta}{\sqrt{\hat{v}_t}+\varepsilon}\,\hat{m}_t \qquad \hat{m}_t = \frac{m_t}{1-\beta_1^t},\quad\hat{v}_t = \frac{v_t}{1-\beta_2^t}$$</div>
+<ul>
+<li>Adaptive in two senses: (A) LR changes over time, (B) different LR per parameter</li>
+<li>Noisy/large-gradient params get smaller effective LR; stable params get larger LR</li>
+</ul>
+</section>
+
+<section id="s12">
+<h2>12. Generative Models <span class="tag hw">HW3</span></h2>
+<h3>Flow Matching (HW3)</h3>
+<ul>
+<li><strong>Forward noising:</strong> $z_t = tx + (1-t)\varepsilon$, $t\in[0,1]$, $\varepsilon\sim\mathcal{N}(0,I)$. Straight-line interpolation.</li>
+<li><strong>Velocity:</strong> $v = \frac{dz_t}{dt} = x - \varepsilon = \frac{x - z_t}{1-t}$</li>
+</ul>
+<div class="formula-block">$$\mathcal{L} = \mathbb{E}_{t,x,\varepsilon}\left[\left\|\frac{\hat{x} - x}{1-t}\right\|^2\right] \quad\text{(weighted x-prediction = velocity prediction)}$$</div>
+<ul>
+<li>Time sampling: logit-normal $t = \sigma(\mu + \sigma_0 z)$, $z\sim\mathcal{N}(0,1)$, $\mu=-0.8$, $\sigma_0=0.8$</li>
+<li><strong>Euler ODE sampler:</strong> $z_0\sim\mathcal{N}(0,I)$, step $z_{k+1} = z_k + \frac{1}{T}\cdot\frac{\hat{x}-z_k}{1-t_k}$</li>
+<li>Works well with $T=10$-$50$ steps (unlike diffusion needing 100s+)</li>
+<li>Architecture: ViT, large patches (8×8). No time conditioning — $\|z_t\|$ encodes $t$ via concentration of measure in $D=3072$ dims</li>
+</ul>
+<h3>Score Matching / Diffusion</h3>
+<ul>
+<li><strong>Score function:</strong> $s(x) = \nabla_x \log p(x)$ — gradient of log-density</li>
+<li><strong>Denoising score matching:</strong> train network to predict noise $\varepsilon$ from $z_t$. MSE loss = denoising score matching. Scaled score function = noise predictor.</li>
+<li><strong>DDPM forward:</strong> $q(z_t|z_{t-1}) = \mathcal{N}(\sqrt{1-\beta_t}z_{t-1},\, \beta_t I)$ — gradual Gaussian corruption</li>
+<li><strong>DDPM variational view:</strong> VAE where encoder = fixed forward noising (not learned), decoder = U-Net. LVLB = $\sum_t$ MSE terms at each noise level</li>
+<li>Continuous normalizing flows: dynamics $dx/dt = f_\theta(x,t)$, invertible ODE. Fokker-Planck governs density evolution.</li>
+</ul>
+<h3>VAE</h3>
+<div class="formula-block">$$\text{ELBO} = \underbrace{\mathbb{E}_{q_\phi(z|x)}[\log p_\theta(x|z)]}_{\text{reconstruction}} - \underbrace{D_\text{KL}(q_\phi(z|x)\,\|\,p(z))}_{\text{regularization}}$$</div>
+<ul>
+<li>Encoder $q_\phi(z|x) = \mathcal{N}(\mu_\phi(x), \sigma_\phi(x)^2)$. Decoder $p_\theta(x|z)$. Maximize ELBO.</li>
+<li><strong>KL between Gaussians:</strong> $D_\text{KL}(\mathcal{N}(\mu,\sigma^2)\|\mathcal{N}(0,1)) = \tfrac{1}{2}(\mu^2+\sigma^2-\log\sigma^2-1)$</li>
+<li><strong>Reparameterization trick:</strong> $z = \mu_\phi(x) + \sigma_\phi(x)\cdot\varepsilon$, $\varepsilon\sim\mathcal{N}(0,I)$ — allows backprop through sampling</li>
+<li>Rate-distortion: ELBO = reconstruction (distortion) − KL (rate = bits to encode $z$). $\beta$-VAE: weight KL by $\beta$ to trade off rate and distortion.</li>
+</ul>
+<h3>VQ-VAE</h3>
+<ul>
+<li>Replace continuous Gaussian $z$ with discrete codebook of $K$ embedding vectors</li>
+<li>Encoder → continuous → find nearest codebook entry → discrete index. Decoder reconstructs from codebook vector.</li>
+<li>Loss: reconstruction + commitment loss (encoder output ≈ codebook) + codebook loss (codebook ≈ encoder). Straight-through estimator for backprop.</li>
+<li><strong>VQ-GAN:</strong> VQ-VAE + GAN discriminator loss → sharper reconstruction. Used in Stable Diffusion latent space.</li>
+</ul>
+<h3>GAN</h3>
+<ul>
+<li>Minimax: $\min_G\max_D \mathbb{E}[\log D(x)] + \mathbb{E}[\log(1-D(G(z)))]$</li>
+<li>No encoder, no explicit probability model. Pros: sharp images. Cons: mode collapse, training instability.</li>
+</ul>
+<table>
+<tr><th></th><th>VAE</th><th>VQ-VAE</th><th>GAN</th></tr>
+<tr><td>Latent</td><td>Continuous Gaussian</td><td>Discrete codebook</td><td>Unstructured noise</td></tr>
+<tr><td>Probability model</td><td>Yes (ELBO)</td><td>Fixed rate</td><td>No</td></tr>
+<tr><td>Encoder</td><td>Yes</td><td>Yes</td><td>No</td></tr>
+<tr><td>Generations</td><td>Blurry but stable</td><td>Good compression</td><td>Sharp but unstable</td></tr>
+</table>
+</section>
+
+<section id="s13">
+<h2>13. Graph Neural Networks</h2>
+<h3>Tasks</h3>
+<ul>
+<li><strong>Node classification:</strong> predict label per node (ad category, paper topic)</li>
+<li><strong>Link prediction:</strong> predict missing edges (friend suggestion, drug-drug interaction)</li>
+<li><strong>Graph-level prediction:</strong> whole-graph property (molecule toxicity, malware detection)</li>
+<li><strong>Inductive</strong> = generalize to new graphs. <strong>Transductive</strong> = test on same training graph.</li>
+</ul>
+<h3>GCN — Message Passing</h3>
+<div class="formula-block">$$h_i^{(l+1)} = \sigma\!\left(W \cdot \text{mean}_{j\in\mathcal{N}(i)\cup\{i\}} h_j^{(l)}\right)$$</div>
+<ul>
+<li>$L$ layers → each node aggregates its $L$-hop neighborhood</li>
+<li>Over-smoothing: as $L\to\infty$, all node representations converge to same vector</li>
+</ul>
+<h3>Skip-gram (DeepWalk, Node2Vec) — Transductive</h3>
+<ul>
+<li>Random walks on graph → sequences. Apply Word2Vec-style embedding.</li>
+<li>Cannot embed new nodes without retraining (transductive).</li>
+</ul>
+<h3>Pitfalls & Solutions</h3>
+<ul>
+<li><strong>Over-smoothing:</strong> MixHop aggregates at multiple hop distances simultaneously → richer representations</li>
+<li><strong>Scalability:</strong> classic GCN trains on full graph — no batching. Solutions:
+  <ul>
+    <li><strong>Sampling-based (GraphSAGE):</strong> sample nodes + neighborhood per step. Inductive — generalizes to new nodes.</li>
+    <li><strong>Decoupled/linearized:</strong> precompute neighborhood aggregations, train MLP separately. Much faster.</li>
+  </ul>
+</li>
+</ul>
+</section>
+
+<section id="s14">
+<h2>14. Formula Sheet</h2>
+<h3>Core ML</h3>
+<div class="formula-block">$$\text{softmax}(z_i) = \frac{e^{z_i}}{\sum_j e^{z_j}} \qquad \text{cross-entropy} = -\sum_c y_c \log\hat{p}_c$$</div>
+<div class="formula-block">$$p(\theta|D) \propto p(D|\theta)\cdot p(\theta) \qquad \hat\theta_\text{MAP} = \arg\max_\theta [\log p(D|\theta) + \log p(\theta)]$$</div>
+<h3>Transformers</h3>
+<div class="formula-block">$$\text{Attention} = \text{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right)V \qquad \text{complexity: } O(N^2 d)$$</div>
+<h3>Calibration</h3>
+<div class="formula-block">$$\text{ECE} = \sum_b \frac{n_b}{N}|\text{acc}(b)-\text{conf}(b)| \qquad \text{calibration error} = |\text{conf}-\text{acc}|$$</div>
+<h3>Contrastive</h3>
+<div class="formula-block">$$\mathcal{L}_\text{InfoNCE} = -\log\frac{\exp(z_a\cdot z_p)}{\exp(z_a\cdot z_p) + \sum_k\exp(z_a\cdot z_k^-)}$$</div>
+<h3>Flow Matching</h3>
+<div class="formula-block">$$z_t = tx + (1-t)\varepsilon \qquad v = \frac{x-z_t}{1-t} \qquad \mathcal{L} = \mathbb{E}\!\left[\left\|\frac{\hat{x}-x}{1-t}\right\|^2\right]$$</div>
+<div class="formula-block">$$z_{k+1} = z_k + \frac{1}{T}\cdot\frac{\hat{x}-z_k}{1-t_k}$$</div>
+<h3>VAE</h3>
+<div class="formula-block">$$\text{ELBO} = \mathbb{E}_q[\log p_\theta(x|z)] - D_\text{KL}(q_\phi(z|x)\,\|\,p(z))$$</div>
+<div class="formula-block">$$D_\text{KL}(\mathcal{N}(\mu,\sigma^2)\|\mathcal{N}(0,1)) = \tfrac{1}{2}(\mu^2+\sigma^2-\log\sigma^2-1)$$</div>
+<h3>Optimization</h3>
+<div class="formula-block">$$v_t = \mu v_{t-1} + \eta g_t \quad\text{(momentum)} \qquad \eta_\text{new} = \eta_\text{old}\cdot\frac{B_\text{new}}{B_\text{old}} \quad\text{(LR scaling)}$$</div>
+<div class="formula-block">$$m_t = \beta_1 m_{t-1}+(1-\beta_1)g_t \qquad v_t = \beta_2 v_{t-1}+(1-\beta_2)g_t^2 \quad\text{(Adam)}$$</div>
+<h3>LoRA & Convolution</h3>
+<div class="formula-block">$$\text{LoRA params} = r(d_\text{in}+d_\text{out}) \qquad |y_\text{valid}| = |x|-|h|+1$$</div>
+<h3>GCN</h3>
+<div class="formula-block">$$h_i^{(l+1)} = \sigma\!\left(W\cdot\text{mean}_{j\in\mathcal{N}(i)\cup\{i\}}h_j^{(l)}\right)$$</div>
+</section>
+
+</main>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  renderMathInElement(document.body, {
+    delimiters: [
+      {left:"$$",right:"$$",display:true},
+      {left:"$",right:"$",display:false}
+    ],
+    throwOnError: false
+  });
+  
+  // TOC active state
+  const sections = document.querySelectorAll('section');
+  const links = document.querySelectorAll('#toc a');
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if(e.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'));
+        const active = document.querySelector(`#toc a[href="#${e.target.id}"]`);
+        if(active) active.classList.add('active');
+      }
+    });
+  }, {threshold: 0.2});
+  sections.forEach(s => obs.observe(s));
+});
+</script>
